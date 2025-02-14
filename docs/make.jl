@@ -12,6 +12,11 @@ makedocs(
 
 deploydocs(
     repo = "github.com/TrymNOHG/mutated-nurses.git",
+    branch = "gh-pages", 
     devbranch="master",
-    push_preview = true # Optional: Preview before merging
+    deploy_config=Documenter.GitHubActions(),
+    git_authors=["yourusername"],
+    target="build",
+    push_preview = true,
+    token=ENV["GITHUB_AUTH"]  
 )
