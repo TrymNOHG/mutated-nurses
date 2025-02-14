@@ -1,4 +1,6 @@
-using Documenter, MutatedNurses
+using Documenter, MutatedNurses, DotEnv
+
+DotEnv.load!()
 
 makedocs(
     sitename="MutatedNurses",
@@ -15,8 +17,6 @@ deploydocs(
     branch = "gh-pages", 
     devbranch="master",
     deploy_config=Documenter.GitHubActions(),
-    git_authors=["yourusername"],
     target="build",
     push_preview = true,
-    token=ENV["GITHUB_AUTH"]  
 )
