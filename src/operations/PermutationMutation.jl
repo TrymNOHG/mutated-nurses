@@ -3,7 +3,7 @@ import Random.Xoshiro
 
 module PermutationMutation 
 
-export PermutationMutation
+export swap_mut, insert_mut, scramble_mut, scramble_seg_mut
 
 function replace!(genotype::Vector{Integer}, i_1, i_2)
     temp = genotype[i_1]
@@ -23,7 +23,7 @@ function swap_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     end
 end
 
-function insert_mut(genotype::Vector{Integer}, mutation_rate::Float32)
+function insert_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     for (i, value) in enumerate(genotype)
         if rand() < mutation_rate
             insert_index = Integer(rand()*size(genotype, 1)) + 1

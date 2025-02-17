@@ -26,6 +26,8 @@ sga_pipeline = [
 
 ]
 
+depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
+
 # config = Config(
 #     genotype_size=10,    
 #     pop_size=1000, 
@@ -41,6 +43,5 @@ sga_pipeline = [
 #     pipeline=sga_pipeline
 # )
 
-    depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
 
 end
