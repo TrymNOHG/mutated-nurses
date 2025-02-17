@@ -3,21 +3,15 @@ import Random.Xoshiro
 
 module PermutationMutation 
 
-export pop_swap_mut, pop_insert_mut, pop_scramble_mut, pop_scramble_seg_mut
+export swap_mut, insert_mut, scramble_mut, scramble_seg_mut
 
-function pop_replace!(genotype::Vector{Integer}, i_1, i_2)
-    """
-    This mutation essentially switches which patient receives care from which doctor. In other words, it will take the whole (nurse_id x route index) and swap it
-    for another patient's value.
-    """
+function replace!(genotype::Vector{Integer}, i_1, i_2)
     temp = genotype[i_1]
     genotype[i_1] = genotype[i_2]
     genotype[i_2] = temp
 end
 
-# Create a function that swaps nurses intra population and repairs the broken routes.
-
-function pop_swap_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
+function swap_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     for (i, value) in enumerate(genotype)
         if rand() < mutation_rate
             swap_index = Integer(rand()*(size(genotype, 1)-1)) + 1
@@ -29,7 +23,7 @@ function pop_swap_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     end
 end
 
-function pop_insert_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
+function insert_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     for (i, value) in enumerate(genotype)
         if rand() < mutation_rate
             insert_index = Integer(rand()*size(genotype, 1)) + 1
@@ -38,7 +32,7 @@ function pop_insert_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     end
 end 
 
-function pop_scramble_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
+function scramble_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     """
     This function collects a random group of values, shuffles them, and inserts them back into the genotype.
     """
@@ -57,7 +51,7 @@ function pop_scramble_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     end
 end 
 
-function pop_scramble_seg_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
+function scramble_seg_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     """
     This function collects a random segment of values, shuffles it, and inserts it back into the genotype.
     """

@@ -1,6 +1,4 @@
-using Base
-
-@kwdef struct Config
+struct Config
     genotype_size::Integer
     pop_size::Integer
     num_gen::Integer

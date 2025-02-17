@@ -2,6 +2,9 @@ module ParentSelection
 
 using CSV
 using DataFrames
+using DataStructures
+
+export tournament_select
 
 function select_parents!(population, num_parents, output_file, best_individual)
     fitness_scores, best_of_pop = sigma_select(population, output_file, 2)
@@ -13,23 +16,23 @@ function select_parents!(population, num_parents, output_file, best_individual)
 end
 
 
-function pop_fitness(population::Vector{T}, fitness_func::Function) where {T}
+function pop_fitness(population::Vector{T}, travel_time_table, fitness_func::Function) where {T}
     """
     This method takes a naive approach to parent selection by solely using the probability distribution given the fitness scores.
     """
     fitness_scores = Vector{Vector{Float32}}() 
     total_fitness = 0
     for (i, individual) in enumerate(population)
-        individ_fitness = fitness_func(individual)
+        individ_fitness = fitness_func(individual, travel_time_table)
         push!(fitness_scores, [individ_fitness, i])
         total_fitness += individ_fitness
     end
 
-    for i in 1:size(fitness_scores, 1)
-        fitness_scores[i][1] /= total_fitness
-    end
+    # for i in 1:size(fitness_scores, 1)
+    #     fitness_scores[i][1] /= total_fitness
+    # end
 
-    return fitness_scores
+    return fitness_scores, total_fitness
 end
 
 function sigma_select(population::Vector{T}, fitness_func::Function, c=2) where {T}
@@ -98,5 +101,54 @@ function stochastic_universal_sampling(population, fitness_scores, num_parents)
     end
     return parents
 end
+
+function tournament_select(population, num_parents::Integer, k::Integer, travel_time_table)
+    chosen_parents = []
+    fitness_scores = pop_fitness(population, travel_time_table, nurse_fitness) # (id_of_individual, fitness_score)
+    num_parents_chosen = 0
+    while num_parents_chosen < num_parents
+        # Perform sampling and comparison
+        sample = [population[Int(trunc(rand()*(size(population, 1) - 1)) + 1)] for _ in 1:k]
+        winner = nothing
+        push!(chosen_parents, winner) # Need to actually add the winner
+        num_parents_chosen += 1
+    end
+
+    return chosen_parents
+end
+
+function nurse_fitness(individual, travel_time_table)
+    # At first, the fitness function will solely contain the total time travelled given the routes for all the nurses
+    # Therefore, I will need to gather the routes to calculate this.
+    nurses = DefaultDict{Int, Vector{tuple}}([])
+    for (i, patient) in enumerate(individual)
+        nurse_num, number_in_route = decode(patient)
+        push!(nurses[nurse_num], (number_in_route, i))
+    end
+
+    total_time= 0
+    for nurse in nurses
+        route = sort(nurses, by=x->x[1])
+        # Is the depot defined as patient ?s
+        from = 1 # Depot if depot is 1
+        for (_, patient_id) in route
+            to = patient_id
+            total_time += travel_time_table[from][to]
+            from = to
+        end
+        to = 1 # Return to depot
+        total_time += travel_time_table[from][to]
+    end
+
+    println(total_time) # Check if this is actually right
+
+end
+
+function decode(patient_value::Int)
+    nurse_num = patient_value >> 4
+    number_in_route = patient_value & 0b1111
+    return nurse_num, number_in_route
+end
+
 
 end

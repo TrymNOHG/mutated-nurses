@@ -28,15 +28,15 @@ depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
 
 function run()
     config = Config(
-        depot.num_nurse,    # Genotype size
-        size(patients, 1),  # Population size
+        size(patients, 1),    # Genotype size
+        50,  # Population size
         50,                 # Number of generations
         0.1,                # Cross-over rate
         0.01,               # Mutate rate
         "./src/logs/kp/"    # History directory
     )
         
-    population = init_permutation(depot.num_nurse, size(patients, 1))     # Initialize population.
+    population = init_permutation_specific(depot.num_nurses, config.genotype_size, config.pop_size)    # Initialize population.
 
     # Objective function : Minimize the total travel time of all nurses
     # Constraints: 
@@ -53,7 +53,13 @@ function run()
     current_gen = 0
     while current_gen < config.num_gen
         # Select Parents
-        parents = select_parents(population, )
+        parents = tournament_select(
+            population,             # Population 
+            10,                     # Number of parents selected (lambda)
+            10,                     # k - Number of participants in the tournament
+            travel_time_table       # The time it takes to travel between patients
+        )
+        
         # Recombination
         # Mutate
         # Survivor Selection
@@ -64,23 +70,6 @@ function run()
 
 
 end
-
-
-function decode(patient_value::Int)
-    nurse_num = patient_value >> 4
-    number_in_route = patient_value & 0b1111
-    return nurse_num, number_in_route
-end
-
-population = init_permutation_specific(5, 10, 1)
-
-println(population)
-
-for patient in population[1]
-    println(decode(patient))
-end
-
-
 
 
 
