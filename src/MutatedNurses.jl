@@ -6,10 +6,12 @@ using .PermutationMutation
 include("Pipeline.jl")
 using .Pipeline
 
-function docs_example()
-    """
-    This function solely serves as an example for documentation and should be removed at a later point in time.
-    """
-end
+include("ParentSelection.jl")
+using .ParentSelection
+
+sga_pipeline = [
+    VectorFunction{Vector{Vector{Int}}}(step_in_ea) # Parent Selection
+
+]
 
 end
