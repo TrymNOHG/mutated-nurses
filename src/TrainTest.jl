@@ -28,8 +28,8 @@ depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
 
 function run()
     config = Config(
-        size(patients, 1),    # Genotype size
-        50,  # Population size
+        size(patients, 1),  # Genotype size
+        50,                 # Population size
         50,                 # Number of generations
         0.1,                # Cross-over rate
         0.01,               # Mutate rate

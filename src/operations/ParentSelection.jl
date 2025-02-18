@@ -4,7 +4,7 @@ using CSV
 using DataFrames
 using DataStructures
 
-export tournament_select
+export tournament_select, nurse_fitness
 
 function select_parents!(population, num_parents, output_file, best_individual)
     fitness_scores, best_of_pop = sigma_select(population, output_file, 2)
@@ -120,7 +120,7 @@ end
 function nurse_fitness(individual, travel_time_table)
     # At first, the fitness function will solely contain the total time travelled given the routes for all the nurses
     # Therefore, I will need to gather the routes to calculate this.
-    nurses = DefaultDict{Int, Vector{tuple}}([])
+    nurses = DefaultDict{Int, Vector{Tuple}}(()->Vector{Tuple}())
     for (i, patient) in enumerate(individual)
         nurse_num, number_in_route = decode(patient)
         push!(nurses[nurse_num], (number_in_route, i))
@@ -128,11 +128,12 @@ function nurse_fitness(individual, travel_time_table)
 
     total_time= 0
     for nurse in nurses
-        route = sort(nurses, by=x->x[1])
+        nurse = nurse[2]
+        route = sort(nurse, by=x->x[1])
         # Is the depot defined as patient ?s
         from = 1 # Depot if depot is 1
         for (_, patient_id) in route
-            to = patient_id
+            to = patient_id + 1 # Plus 1 to account for the depot 
             total_time += travel_time_table[from][to]
             from = to
         end
@@ -140,7 +141,8 @@ function nurse_fitness(individual, travel_time_table)
         total_time += travel_time_table[from][to]
     end
 
-    println(total_time) # Check if this is actually right
+    # If we use the total_time, then this is a minimization optimization problem. Keep this in mind.
+    return total_time
 
 end
 

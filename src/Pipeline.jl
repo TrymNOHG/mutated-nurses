@@ -4,7 +4,7 @@ module Pipeline
 include("models/Config.jl")
 
 
-export VectorFunction, train
+export VectorFunction, train, run_pipeline
 
 struct VectorFunction{T}
     f::Function
