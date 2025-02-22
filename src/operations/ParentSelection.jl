@@ -4,7 +4,7 @@ using CSV
 using DataFrames
 using DataStructures
 
-export tournament_select, nurse_fitness
+export tournament_select, nurse_fitness, simple_nurse_fitness
 
 function select_parents!(population, num_parents, output_file, best_individual)
     fitness_scores, best_of_pop = sigma_select(population, output_file, 2)
@@ -16,14 +16,14 @@ function select_parents!(population, num_parents, output_file, best_individual)
 end
 
 
-function pop_fitness(population::Vector{T}, travel_time_table, fitness_func::Function) where {T}
+function pop_fitness(population::Vector{T}, travel_time_table, patients, return_time, capacity, fitness_func::Function) where {T}
     """
     This method takes a naive approach to parent selection by solely using the probability distribution given the fitness scores.
     """
     fitness_scores = Vector{Float32}() 
     total_fitness = 0
     for (i, individual) in enumerate(population)
-        individ_fitness = fitness_func(individual, travel_time_table)
+        individ_fitness = fitness_func(individual, travel_time_table, patients, return_time, capacity)
         push!(fitness_scores, individ_fitness)
         total_fitness += individ_fitness
     end
@@ -102,9 +102,9 @@ function stochastic_universal_sampling(population, fitness_scores, num_parents)
     return parents
 end
 
-function tournament_select(population, num_parents::Integer, k::Integer, travel_time_table)
+function tournament_select(population, num_parents::Integer, k::Integer, travel_time_table, patients, return_time, capacity)
     chosen_parents = []
-    fitness_scores, total_fitness = pop_fitness(population, travel_time_table, nurse_fitness) # (id_of_individual, fitness_score)
+    fitness_scores, total_fitness = pop_fitness(population, travel_time_table, patients, return_time, capacity, nurse_fitness) # (id_of_individual, fitness_score)
     num_parents_chosen = 0
     while num_parents_chosen < num_parents
         # Perform sampling and comparison
@@ -112,18 +112,64 @@ function tournament_select(population, num_parents::Integer, k::Integer, travel_
         winner = (50000, nothing)
         for i in sample
             fitness = fitness_scores[i]
-            if fitness < winner[1]
+            if fitness < winner[1]                  # Deterministic probability since the most fit individual from the sample is chosen.
                 winner = (fitness, population[i])
             end
         end
-        push!(chosen_parents, winner) # Need to actually add the winner
+        push!(chosen_parents, winner[2]) 
         num_parents_chosen += 1
     end
 
     return chosen_parents
 end
 
-function nurse_fitness(individual, travel_time_table)
+function nurse_fitness(individual, travel_time_table, patients, return_time, capacity)
+    # Constraints:
+    #   Soft:
+    #       - Late return       (Added as a penalty)
+    #       - Capacity exceeded (Added as a penalty)
+    #   Hard:
+    #       - Patient time-windows are met (Should be dealt with prior to coming to this function)
+    #       - Each patient is only visited once (encoded)
+
+    # TODO: add wait time to nurse_time
+
+    total_time = 0
+    objective_value = 0
+    for (i, route) in enumerate(individual)
+        nurse_time = 0
+        nurse_demand = 0
+
+        from = 1 # Depot if depot is 1
+        for (_, patient_id) in enumerate(route)
+        to = patient_id + 1 # Plus 1 to account for the depot 
+            wait_time = 0
+            nurse_time += travel_time_table[from][to] + patients[patient_id].care_time + wait_time # Duration
+            nurse_demand += patients[patient_id].demand
+            objective_value += travel_time_table[from][to]
+            from = to
+        end
+        to = 1 # Return to depot
+        nurse_time += travel_time_table[from][to]
+        objective_value += travel_time_table[from][to]
+
+        if nurse_time > return_time
+            nurse_time *= 5            # Penalty for late return
+        end
+
+        if nurse_demand > capacity      # Penalty for exceeding nurse capacity
+            nurse_time *= 5
+        end
+
+        total_time += nurse_time
+    end
+
+    # If we use the total_time, then this is a minimization optimization problem. Keep this in mind.
+    return total_time, objective_value
+
+end
+
+function simple_nurse_fitness(individual, travel_time_table)
     # At first, the fitness function will solely contain the total time travelled given the routes for all the nurses
     # Therefore, I will need to gather the routes to calculate this.
     total_time = 0
@@ -140,7 +186,6 @@ function nurse_fitness(individual, travel_time_table)
 
     # If we use the total_time, then this is a minimization optimization problem. Keep this in mind.
     return total_time
-
 end
 
 

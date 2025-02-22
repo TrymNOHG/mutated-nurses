@@ -4,7 +4,7 @@ import Random.Xoshiro
 import Random.randperm!
 import Random.shuffle!
 
-export init_permutation, init_bitstring, init_permutation_specific
+export init_permutation, init_bitstring, init_permutation_specific, repair
 
 # Function to initialize different encodings such as bitstring, permutation, etc.
 
@@ -53,6 +53,76 @@ end
 
 function init_bitstring(individual_size::Integer, pop_size::Integer)
     return [bitrand(Xoshiro(), num_bits) for _ in 1:pop_size]
+end
+
+function repair(individual, patients, travel_time_table)
+    """
+    Does not repair all currently
+    """
+    # Check if within time window
+    println(size(individual, 1))
+    for route in individual
+        violations = locate_violations!(route, patients, travel_time_table)
+        # Is it best to try and organize the violations before trying to insert them into the route again? What is faster?
+        # Start off with brute-force
+        # Could do some smart interval scheduling things later...
+        persistent_violations = []
+        while size(violations, 1) > 0 
+            current_violation = pop!(violations)
+            persist = true
+            for (i, patient) in enumerate(route)
+                insert!(route, i, current_violation)
+                new_violations = locate_violations!(route, patients, travel_time_table)
+                if size(new_violations, 1) == 0
+                    persist = false
+                    break
+                end
+            end
+            if persist == true
+                insert!(route, size(route, 1), current_violation)
+                new_violations = locate_violations!(route, patients, travel_time_table)
+                if size(new_violations, 1) != 0
+                    push!(persistent_violations, current_violation)
+                end
+            end
+        end
+        println(persistent_violations)
+    end
+end
+
+function locate_violations!(route, patients, travel_time_table)
+    violations = []
+    time = 0
+    from = 1
+    for (i, patient) in enumerate(route)
+        to = i + 1
+        time += travel_time_table[from][to]
+        if time < patients[patient].start_time
+            time = patients[patient].start_time + patients[patient].care_time
+            from = to
+        elseif patients[patient].start_time <= time <= patients[patient].end_time - patients[patient].care_time
+            time += patients[patient].care_time
+            from = to
+        else
+            push!(violations, route[i])
+            deleteat!(route, i)
+            time -= travel_time_table[from][to]
+        end
+    end
+    return violations
+end
+
+
+
+# Go through the current route and collect all violations
+# at the same time build a list of the earliest?
+# Linearly try and insert the violations into the route in order to fulfill the time-window constraint.
+
+function is_feasible(individual, patients)
+    # Check demand
+    # Check scheduling
+    # Check return time
+    # Could also check that each patient is only visited once (but this is a bit unnecessary)
 end
 
 end

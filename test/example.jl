@@ -30,6 +30,10 @@ end
 include("../src/operations/ParentSelection.jl")
 using .ParentSelection
 
+
+include("../src/operations/Population.jl")
+using .Population
+
 include("../src/utils/NurseReader.jl")
 using .NurseReader
 
@@ -39,8 +43,8 @@ using .NurseReader
     individual = Vector{Vector{Int}}([route])
     depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
     expected_fitness = travel_time_table[1][2] + travel_time_table[2][1]
-    actual_fitness = nurse_fitness(individual, travel_time_table)
-    @test nurse_fitness(individual, travel_time_table) == expected_fitness
+    actual_fitness = simple_nurse_fitness(individual, travel_time_table)
+    @test actual_fitness == expected_fitness
 end
 
 @testset "NurseFitnessMedium" begin
@@ -48,6 +52,13 @@ end
     individual = Vector{Vector{Int}}([route])
     depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
     expected_fitness = travel_time_table[1][2] + travel_time_table[2][3] + travel_time_table[3][1]
-    actual_fitness = nurse_fitness(individual, travel_time_table)
-    @test nurse_fitness(individual, travel_time_table) == expected_fitness
+    actual_fitness = simple_nurse_fitness(individual, travel_time_table)
+    @test actual_fitness == expected_fitness
+end
+
+@testset "RepairRoute" begin
+    route = Vector{Int}([1])  # Depot to Patient 1 to Depot
+    individual = Vector{Vector{Int}}([route])
+    depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
+    repair(individual, patients)
 end
