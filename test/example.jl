@@ -35,7 +35,8 @@ using .NurseReader
 
 
 @testset "NurseFitnessEasy" begin
-    individual = Vector{Int}([0])  # Nurse 0 goes from depot to patient 1 and then back to depot
+    route = Vector{Int}([1])  # Depot to Patient 1 to Depot
+    individual = Vector{Vector{Int}}([route])
     depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
     expected_fitness = travel_time_table[1][2] + travel_time_table[2][1]
     actual_fitness = nurse_fitness(individual, travel_time_table)
@@ -43,7 +44,8 @@ using .NurseReader
 end
 
 @testset "NurseFitnessMedium" begin
-    individual = Vector{Int}([0, 1])  # Nurse 0 goes from depot to patient 1 and then back to depot
+    route = Vector{Int}([1, 2])  # Depot to Patient 1 to Patient 2 to Depot
+    individual = Vector{Vector{Int}}([route])
     depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
     expected_fitness = travel_time_table[1][2] + travel_time_table[2][3] + travel_time_table[3][1]
     actual_fitness = nurse_fitness(individual, travel_time_table)

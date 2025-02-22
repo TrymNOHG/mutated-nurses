@@ -54,21 +54,21 @@ function run()
     # Simple generational stop condition
 
     # current_gen = 0
-    # while current_gen < config.num_gen
-    #     # Select Parents
-    #     parents = tournament_select(
-    #         population,             # Population 
-    #         10,                     # Number of parents selected (lambda)
-    #         10,                     # k - Number of participants in the tournament
-    #         travel_time_table       # The time it takes to travel between patients
-    #     )
+    while current_gen < config.num_gen
+        # Select Parents
+        parents = tournament_select(
+            population,             # Population 
+            10,                     # Number of parents selected (lambda)
+            10,                     # k - Number of participants in the tournament
+            travel_time_table       # The time it takes to travel between patients
+        )
         
-    #     # Recombination
-    #     # Mutate
-    #     # Survivor Selection
+        # Recombination
+        # Mutate
+        # Survivor Selection
 
-    #     current_gen += 1
-    # end
+        current_gen += 1
+    end
 
 
 
