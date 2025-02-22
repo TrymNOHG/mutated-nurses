@@ -30,7 +30,7 @@ function run()
     config = Config(
         size(patients, 1),  # Genotype size
         50,                 # Population size
-        50,                 # Number of generations
+        1,                 # Number of generations
         0.1,                # Cross-over rate
         0.01,               # Mutate rate
         "./src/logs/kp/"    # History directory
@@ -53,15 +53,20 @@ function run()
 
     # Simple generational stop condition
 
-    # current_gen = 0
+    current_gen = 0
     while current_gen < config.num_gen
         # Select Parents
         parents = tournament_select(
             population,             # Population 
-            10,                     # Number of parents selected (lambda)
-            10,                     # k - Number of participants in the tournament
+            50,                     # Number of parents selected (lambda)
+            5,                     # k - Number of participants in the tournament
             travel_time_table       # The time it takes to travel between patients
         )
+        
+        println("Original population: ")
+        println(population)
+        println("Parents chosen: ")
+        println(parents)
         
         # Recombination
         # Mutate

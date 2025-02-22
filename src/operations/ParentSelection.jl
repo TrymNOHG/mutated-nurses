@@ -20,11 +20,11 @@ function pop_fitness(population::Vector{T}, travel_time_table, fitness_func::Fun
     """
     This method takes a naive approach to parent selection by solely using the probability distribution given the fitness scores.
     """
-    fitness_scores = Vector{Vector{Float32}}() 
+    fitness_scores = Vector{Float32}() 
     total_fitness = 0
     for (i, individual) in enumerate(population)
         individ_fitness = fitness_func(individual, travel_time_table)
-        push!(fitness_scores, [individ_fitness, i])
+        push!(fitness_scores, individ_fitness)
         total_fitness += individ_fitness
     end
 
@@ -104,12 +104,18 @@ end
 
 function tournament_select(population, num_parents::Integer, k::Integer, travel_time_table)
     chosen_parents = []
-    fitness_scores = pop_fitness(population, travel_time_table, nurse_fitness) # (id_of_individual, fitness_score)
+    fitness_scores, total_fitness = pop_fitness(population, travel_time_table, nurse_fitness) # (id_of_individual, fitness_score)
     num_parents_chosen = 0
     while num_parents_chosen < num_parents
         # Perform sampling and comparison
-        sample = [population[Int(trunc(rand()*(size(population, 1) - 1)) + 1)] for _ in 1:k]
-        winner = nothing
+        sample = [rand(1:size(population, 1)) for _ in 1:k] # Sampling with Replacement (could also do without at a later point...)
+        winner = (50000, nothing)
+        for i in sample
+            fitness = fitness_scores[i]
+            if fitness < winner[1]
+                winner = (fitness, population[i])
+            end
+        end
         push!(chosen_parents, winner) # Need to actually add the winner
         num_parents_chosen += 1
     end
