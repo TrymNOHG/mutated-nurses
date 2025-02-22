@@ -1,5 +1,5 @@
 struct Depot
-    num_nurse::Int
+    num_nurses::Int
     nurse_cap::Int
     benchmark::Float64
     return_time::Int
