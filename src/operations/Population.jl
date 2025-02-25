@@ -4,7 +4,9 @@ import Random.Xoshiro
 import Random.randperm!
 import Random.shuffle!
 
-export init_permutation, init_bitstring, init_permutation_specific, repair
+include("../models/Solution.jl")
+
+export init_permutation, init_bitstring, init_permutation_specific, repair!
 
 # Function to initialize different encodings such as bitstring, permutation, etc.
 
@@ -23,24 +25,37 @@ function gen_route_individual(num_nurses::Integer, num_patients::Integer)
             rest -= 1
         end
     end
-    println(nurse_ids)
+    # println(nurse_ids)
     return shuffle!(Xoshiro(), nurse_ids)
 end
 
 
 # Easiest implementation first
+# function gen_perm_individual(num_nurses::Integer, num_patients::Integer)
+#     """
+#     This function generates an individual where the genotype consists of an n-vector of variable vectors. n is the number of nurses. The sum of the sizes of the variable 
+#     vectors equals the number of patients. Furthermore, the entries in the vectors form a set of patient ids.
+#     """
+#     nurses = [[] for _ in 1:num_nurses]
+#     patients = [i for i in 1:num_patients]
+#     while size(patients, 1) > 0
+#         nurse_id = rand(1:num_nurses)
+#         push!(nurses[nurse_id], pop!(patients))
+#     end
+#     return nurses
+# end
+
 function gen_perm_individual(num_nurses::Integer, num_patients::Integer)
     """
     This function generates an individual where the genotype consists of an n-vector of variable vectors. n is the number of nurses. The sum of the sizes of the variable 
     vectors equals the number of patients. Furthermore, the entries in the vectors form a set of patient ids.
     """
-    nurses = [[] for _ in 1:num_nurses]
     patients = [i for i in 1:num_patients]
-    while size(patients, 1) > 0
-        nurse_id = rand(1:num_nurses)
-        push!(nurses[nurse_id], pop!(patients))
-    end
-    return nurses
+    shuffle!(patients)
+    init_rand_num = rand()
+    prob_slice = 1 / num_nurses
+    nurse_indices = [Int(trunc(((init_rand_num + prob_slice * i)*num_patients)%num_patients-2)+2) for i in 1:num_nurses-1]
+    return Solution(patients, nurse_indices)
 end
 
 function init_permutation_general(individual_size::Integer, pop_size::Integer)
@@ -55,13 +70,20 @@ function init_bitstring(individual_size::Integer, pop_size::Integer)
     return [bitrand(Xoshiro(), num_bits) for _ in 1:pop_size]
 end
 
-function repair(individual, patients, travel_time_table)
+function repair!(individual, patients, travel_time_table)
     """
     Does not repair all currently
     """
     # Check if within time window
-    println(size(individual, 1))
-    for route in individual
+    # println(size(individual, 1))
+    for i in 0:size(individual.indices, 1)
+        if i == 0
+            route = individual.values[1:individual.indices[1] - 1]
+        elseif i == size(individual.indices, 1)
+            route = individual.values[individual.indices[i]:end]
+        else
+            route = individual.values[individual.indices[i]:individual.indices[i+1] - 1]
+        end
         violations = locate_violations!(route, patients, travel_time_table)
         # Is it best to try and organize the violations before trying to insert them into the route again? What is faster?
         # Start off with brute-force
@@ -86,7 +108,8 @@ function repair(individual, patients, travel_time_table)
                 end
             end
         end
-        println(persistent_violations)
+        push!(route, persistent_violations...)
+        # println(persistent_violations)
     end
 end
 

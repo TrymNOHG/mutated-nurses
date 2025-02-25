@@ -23,7 +23,10 @@ function pop_fitness(population::Vector{T}, travel_time_table, patients, return_
     fitness_scores = Vector{Float32}() 
     total_fitness = 0
     for (i, individual) in enumerate(population)
-        individ_fitness = fitness_func(individual, travel_time_table, patients, return_time, capacity)
+        individ_fitness, objective_value = fitness_func(individual, travel_time_table, patients, return_time, capacity)
+        if objective_value < 4000
+            println(objective_value)
+        end
         push!(fitness_scores, individ_fitness)
         total_fitness += individ_fitness
     end
@@ -117,8 +120,10 @@ function tournament_select(population, num_parents::Integer, k::Integer, travel_
             end
         end
         push!(chosen_parents, winner[2]) 
+        # println(winner[1])
         num_parents_chosen += 1
     end
+
 
     return chosen_parents
 end
@@ -136,13 +141,21 @@ function nurse_fitness(individual, travel_time_table, patients, return_time, cap
 
     total_time = 0
     objective_value = 0
-    for (i, route) in enumerate(individual)
+    for i in 0:size(individual.indices, 1)
+        if i == 0
+            route = individual.values[1:individual.indices[1] - 1]
+        elseif i == size(individual.indices, 1)
+            route = individual.values[individual.indices[i]:end]
+        else
+            route = individual.values[individual.indices[i]:individual.indices[i+1] - 1]
+        end
+
         nurse_time = 0
         nurse_demand = 0
 
         from = 1 # Depot if depot is 1
-        for (_, patient_id) in enumerate(route)
-        to = patient_id + 1 # Plus 1 to account for the depot 
+        for patient_id in route
+            to = patient_id + 1 # Plus 1 to account for the depot 
             wait_time = 0
             nurse_time += travel_time_table[from][to] + patients[patient_id].care_time + wait_time # Duration
             nurse_demand += patients[patient_id].demand

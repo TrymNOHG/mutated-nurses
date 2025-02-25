@@ -26,8 +26,14 @@ end
 
 # TODO: test differnet crossover methods
 # TODO: implement repair functionality for crossover
+# I think the strategy here is to essentially unfold the 2d arrays, then use the methods discussed in class
+# Then, I just fold the arrays again.
 
-function permutation_crossover()
+function permutation_crossover!(parent_1, parent_2, survivors, num_patients)
+    split_index_1 = rand(1:num_patients)
+    split_index_2 = rand(1:num_patients)
+    interval = (min(split_index_1, split_index_2), max(split_index_1, split_index_2))
+
 end
 
 function bitstring_crossover!(parent_1, parent_2, survivors)

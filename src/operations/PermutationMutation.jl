@@ -20,9 +20,9 @@ end
 function pop_swap_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     for (i, value) in enumerate(genotype)
         if rand() < mutation_rate
-            swap_index = Integer(rand()*(size(genotype, 1)-1)) + 1
+            swap_index = rand(1:size(genotype, 1))
             while swap_index == i
-                swap_index = Integer(rand()*(size(genotype, 1)-1)) + 1
+                swap_index = rand(1:size(genotype, 1))
             end
             replace!(genotype, i, swap_index)
         end
@@ -62,8 +62,8 @@ function pop_scramble_seg_mut!(genotype::Vector{Integer}, mutation_rate::Float32
     This function collects a random segment of values, shuffles it, and inserts it back into the genotype.
     """
 
-    rand_1 = Integer(rand()*size(genotype, 1))
-    rand_2 = Integer(rand()*size(genotype, 1))
+    rand_1 = rand(1:size(genotype, 1))
+    rand_2 = rand(1:size(genotype, 1))
     
     start_index = min(rand_1, rand_2)
     end_index = max(rand_1, rand_2)
