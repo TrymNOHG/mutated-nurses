@@ -52,9 +52,14 @@ function gen_perm_individual(num_nurses::Integer, num_patients::Integer)
     """
     patients = [i for i in 1:num_patients]
     shuffle!(patients)
-    init_rand_num = rand()
-    prob_slice = 1 / num_nurses
-    nurse_indices = [Int(trunc(((init_rand_num + prob_slice * i)*num_patients)%num_patients-2)+2) for i in 1:num_nurses-1]
+    avg_route = num_patients ÷ num_nurses
+    nurse_indices = []
+    current = 0
+    for i in 1:num_nurses-1
+        current += rand(1:avg_route)
+        push!(nurse_indices, current)
+    end
+
     return Solution(patients, nurse_indices)
 end
 
@@ -146,6 +151,21 @@ function is_feasible(individual, patients)
     # Check scheduling
     # Check return time
     # Could also check that each patient is only visited once (but this is a bit unnecessary)
+end
+
+function correct_format(solution)
+    actual_solution = []
+    for i in 0:size(individual.indices, 1)
+        if i == 0
+            route = individual.values[1:individual.indices[1] - 1]
+        elseif i == size(individual.indices, 1)
+            route = individual.values[individual.indices[i]:end]
+        else
+            route = individual.values[individual.indices[i]:individual.indices[i+1] - 1]
+        end
+        actual_solution.append(route)
+    end
+    println(actual_solution)
 end
 
 end

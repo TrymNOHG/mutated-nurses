@@ -1,9 +1,11 @@
-import Random.rand
-import Random.Xoshiro
 
 module PermutationMutation 
 
-export pop_swap_mut, pop_insert_mut, pop_scramble_mut, pop_scramble_seg_mut
+import Random.rand
+import Random.randperm!
+import Random.Xoshiro
+
+export pop_swap_mut!, pop_insert_mut!, pop_scramble_mut!, pop_scramble_seg_mut!
 
 function pop_replace!(genotype::Vector{Integer}, i_1, i_2)
     """
@@ -17,7 +19,7 @@ end
 
 # Create a function that swaps nurses intra population and repairs the broken routes.
 
-function pop_swap_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
+function pop_swap_mut!(genotype::Vector{Int64}, mutation_rate::Float16)
     for (i, value) in enumerate(genotype)
         if rand() < mutation_rate
             swap_index = rand(1:size(genotype, 1))
@@ -29,7 +31,7 @@ function pop_swap_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     end
 end
 
-function pop_insert_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
+function pop_insert_mut!(genotype::Vector{Int64}, mutation_rate::Float16)
     for (i, value) in enumerate(genotype)
         if rand() < mutation_rate
             insert_index = Integer(rand()*size(genotype, 1)) + 1
@@ -38,7 +40,7 @@ function pop_insert_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     end
 end 
 
-function pop_scramble_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
+function pop_scramble_mut!(genotype::Vector{Int64}, mutation_rate::Float16)
     """
     This function collects a random group of values, shuffles them, and inserts them back into the genotype.
     """
@@ -57,30 +59,33 @@ function pop_scramble_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
     end
 end 
 
-function pop_scramble_seg_mut!(genotype::Vector{Integer}, mutation_rate::Float32)
+function pop_scramble_seg_mut!(genotype::Vector{Int64}, mutation_rate::Float16)
     """
     This function collects a random segment of values, shuffles it, and inserts it back into the genotype.
     """
+    if rand() < mutation_rate
 
-    rand_1 = rand(1:size(genotype, 1))
-    rand_2 = rand(1:size(genotype, 1))
-    
-    start_index = min(rand_1, rand_2)
-    end_index = max(rand_1, rand_2)
-
-    segment = genotype[start_index:end_index]
+        rand_1 = rand(1:size(genotype, 1))
+        rand_2 = rand(1:size(genotype, 1))
         
-    randperm!(Xoshiro(123), segment)
-    
-    j = 0
-    for i in start_index:end_index
-        genotype[i] = segment[j]
-        j += 1
-    end
+        start_index = min(rand_1, rand_2)
+        end_index = max(rand_1, rand_2)
 
+        segment = genotype[start_index:end_index]
+            
+        randperm!(Xoshiro(123), segment)
+
+        # println(segment)
+        
+        j = 1
+        for i in start_index:end_index
+            genotype[i] = segment[j]
+            j += 1
+        end
+    end
 end 
 
-function inversion_mut(genotype::Vector{Integer}, mutation_rate::Float32)
+function inversion_mut(genotype::Vector{Int64}, mutation_rate::Float16)
 end 
 
 

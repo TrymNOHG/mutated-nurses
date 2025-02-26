@@ -24,8 +24,11 @@ function pop_fitness(population::Vector{T}, travel_time_table, patients, return_
     total_fitness = 0
     for (i, individual) in enumerate(population)
         individ_fitness, objective_value = fitness_func(individual, travel_time_table, patients, return_time, capacity)
-        if objective_value < 4000
+        if objective_value < 2000
             println(objective_value)
+        elseif objective_value < 1400
+            println("Objective value fell under 1000 for:")
+            println(individual)
         end
         push!(fitness_scores, individ_fitness)
         total_fitness += individ_fitness
@@ -48,7 +51,7 @@ function sigma_select(population::Vector{T}, fitness_func::Function, c=2) where 
     end
 
     mean = total_fitness / size(population, 1)
-    std = sqrt(sum([(fitness - mean)^2 for (fitness, index) in fitness_scores]) /size(population, 1))
+    std = sqrt(sum([(fitness - mean)^2 for (fitness, index) in fitness_scores]) / size(population, 1))
 
     best_of_pop = [minimum(fitness_scores)[1], population[Integer(minimum(fitness_scores)[2])]] # REMEMBER TO CHANGE BASED ON MAXIMIZATION OR MINIMIZATION PROBLEM!!!
 
@@ -112,7 +115,7 @@ function tournament_select(population, num_parents::Integer, k::Integer, travel_
     while num_parents_chosen < num_parents
         # Perform sampling and comparison
         sample = [rand(1:size(population, 1)) for _ in 1:k] # Sampling with Replacement (could also do without at a later point...)
-        winner = (50000, nothing)
+        winner = (typemax(Int32), nothing)
         for i in sample
             fitness = fitness_scores[i]
             if fitness < winner[1]                  # Deterministic probability since the most fit individual from the sample is chosen.
@@ -123,7 +126,7 @@ function tournament_select(population, num_parents::Integer, k::Integer, travel_
         # println(winner[1])
         num_parents_chosen += 1
     end
-
+    # println(chosen_parents)
 
     return chosen_parents
 end

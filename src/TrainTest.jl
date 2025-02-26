@@ -18,9 +18,12 @@ using .ParentSelection
 include("operations/Population.jl")
 using .Population
 
+include("operations/Recombination.jl")
+using .Recombination
+
 using CSV
 
-depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
+depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
 
 # Mutations already implemented: swap_mut, insert_mut, scramble_mut, scramble_seg_mut
 
@@ -30,8 +33,8 @@ depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
 function run()
     config = Config(
         size(patients, 1),  # Genotype size
-        10000,                 # Population size
-        1,                 # Number of generations
+        1000,                 # Population size
+        1000,                 # Number of generations
         0.1,                # Cross-over rate
         0.01,               # Mutate rate
         "./src/logs/kp/"    # History directory
@@ -55,6 +58,8 @@ function run()
     current_gen = 0
     while current_gen < config.num_gen
         # Select Parents
+        println(current_gen + 1)
+        println("Parent Selection")
         parents = tournament_select(
             population,             # Population 
             size(population, 1),                     # Number of parents selected (lambda)
@@ -65,14 +70,23 @@ function run()
             depot.nurse_cap         # Nurse capacity
         )
         
-        println(nurse_fitness(population[1], travel_time_table, patients, depot.return_time, depot.nurse_cap))
+        # println(nurse_fitness(population[1], travel_time_table, patients, depot.return_time, depot.nurse_cap))
         
+        # println(parents)
+        println("Recombination")
+        survivors = perform_crossover(parents, config.genotype_size, config.cross_rate)
+        # print(survivors)
         # Recombination
-
-
         # Mutate
-        # population = 
+        println("Mutation")
+        # pop_swap_mut, pop_insert_mut, pop_scramble_mut, pop_scramble_seg_mut
+        for solution in survivors
+            pop_scramble_seg_mut!(solution.values, config.mutate_rate)
+            repair!(solution, patients, travel_time_table)
+        end
+
         # Survivor Selection
+        population = survivors
 
         current_gen += 1
     end
@@ -83,10 +97,5 @@ function run()
 end
 
 run()
-
-# route = Vector{Int}([5, 4, 3, 2, 1])  # Depot to Patient 1 to Depot
-# individual = Solution([5, 4, 3, 2, 1], [2, 3])
-# depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
-# repair!(individual, patients, travel_time_table)
 
 end
