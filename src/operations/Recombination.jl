@@ -37,49 +37,40 @@ end
 # TODO: implement repair functionality for crossover
 
 function order_1_crossover!(parent_1, parent_2, survivors, num_patients)
-    # split_index_1 = rand(1:num_patients)
-    # split_index_2 = rand(1:num_patients)
-    split_index_1 = 4
-    split_index_2 = 7
+    split_index_1 = rand(1:num_patients)
+    split_index_2 = rand(1:num_patients)
     interval = (min(split_index_1, split_index_2), max(split_index_1, split_index_2))
 
     child_values = [0 for _ in 1:num_patients]
     segment = parent_1.values[interval[1]:interval[2]]
     child_values[interval[1]:interval[2]] = segment
-    parent_index = (interval[2] % num_patients) + 1
-    child_index = parent_index
-    counter = 0
+    parent_2_index = (interval[2] % num_patients) + 1
+    child_index = parent_2_index
+
     while child_index < interval[1] || child_index > interval[2]
-        if counter > 2 * num_patients
-            println(interval)
-            println(segment)
-            # println((interval[2] % num_patients) + 1)
-            println(child_index)
-            println(parent_index)
-            println(parent_2.values[parent_index])
-            println(parent_2.values)
-            println(child_values)
-        end
-        # println(parent_index)
-        potential_val = parent_2.values[parent_index]
-        in_child = false
+
+        potential_val = parent_2.values[parent_2_index]
+        in_seg = false
         for val in segment
             if potential_val == val
-                in_child = true
+                in_seg = true
                 break
             end
         end
-        parent_index = (parent_index % num_patients) + 1 # Could make into if statements if modulo costs too much
-        if in_child == false
+
+        if in_seg == false
             child_values[child_index] = potential_val
             child_index = (child_index % num_patients) + 1
         end
-        counter += 1
+        
+        parent_2_index = (parent_2_index % num_patients) + 1 # Could make into if statements if modulo costs too much
+
     end 
 
     # Could easily make two children just by using different route indices
+
+
     child = Solution(child_values, parent_1.indices)
-    # repair!(child)
     push!(survivors, child)
 end
 

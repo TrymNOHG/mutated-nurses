@@ -33,10 +33,10 @@ depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
 function run()
     config = Config(
         size(patients, 1),  # Genotype size
-        1000,                 # Population size
-        1000,                 # Number of generations
+        100,                 # Population size
+        10000,                 # Number of generations
         0.1,                # Cross-over rate
-        0.01,               # Mutate rate
+        0.1,               # Mutate rate
         "./src/logs/kp/"    # History directory
     )
         
@@ -63,18 +63,19 @@ function run()
         parents = tournament_select(
             population,             # Population 
             size(population, 1),                     # Number of parents selected (lambda)
-            4,                     # k - Number of participants in the tournament
+            10,                     # k - Number of participants in the tournament
             travel_time_table,       # The time it takes to travel between patients
             patients,               # Patient information
             depot.return_time,       # Depot return time
             depot.nurse_cap         # Nurse capacity
         )
-        
+
         # println(nurse_fitness(population[1], travel_time_table, patients, depot.return_time, depot.nurse_cap))
         
         # println(parents)
         println("Recombination")
         survivors = perform_crossover(parents, config.genotype_size, config.cross_rate)
+
         # print(survivors)
         # Recombination
         # Mutate
@@ -82,9 +83,16 @@ function run()
         # pop_swap_mut, pop_insert_mut, pop_scramble_mut, pop_scramble_seg_mut
         for solution in survivors
             pop_scramble_seg_mut!(solution.values, config.mutate_rate)
+            pop_insert_mut!(solution.values, config.mutate_rate)
+            route_mutation!(solution.indices,  config.genotype_size, config.mutate_rate)
             repair!(solution, patients, travel_time_table)
         end
 
+        for individual in survivors
+            if length(Set(individual.values)) < config.genotype_size
+                throw("Bruh")
+            end
+        end
         # Survivor Selection
         population = survivors
 

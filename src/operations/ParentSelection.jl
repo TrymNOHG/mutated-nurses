@@ -24,11 +24,23 @@ function pop_fitness(population::Vector{T}, travel_time_table, patients, return_
     total_fitness = 0
     for (i, individual) in enumerate(population)
         individ_fitness, objective_value = fitness_func(individual, travel_time_table, patients, return_time, capacity)
-        if objective_value < 2000
+        if objective_value < 4000
             println(objective_value)
-        elseif objective_value < 1400
+        elseif objective_value < 2000
             println("Objective value fell under 1000 for:")
             println(individual)
+            actual_solution = []
+            for i in 0:size(individual.indices, 1)
+                if i == 0
+                    route = individual.values[1:individual.indices[1] - 1]
+                elseif i == size(individual.indices, 1)
+                    route = individual.values[individual.indices[i]:end]
+                else
+                    route = individual.values[individual.indices[i]:individual.indices[i+1] - 1]
+                end
+                actual_solution.append(route)
+            end
+            println(actual_solution)
         end
         push!(fitness_scores, individ_fitness)
         total_fitness += individ_fitness
