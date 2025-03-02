@@ -1,9 +1,9 @@
-include("split.jl")
-using .split
+module FitnFeasible
 
-module fitness
+using ..Split
+using ..Models
 
-export generic_fitness
+export generic_fitness, check_feasible
 
 function generic_fitness(gene::Vector{Integer}, time_matrix::Vector{Vector{Integer}}, patient_demands::Vector{Integer}, nurse_cap::Integer, nurse_n::Integer)
     # Would calculate fitness of gene based on the travel time.
@@ -29,5 +29,19 @@ function generic_fitness(gene::Vector{Integer}, time_matrix::Vector{Vector{Integ
     end
     return -total_time
 end
+
+function check_feasible(curr_gene::Gene, patients::Vector{Patient}, depot::Depot)
+    for route in curr_gene.gene_r
+        route_dem = 0
+        for client_id in route
+            route_dem += patients[client_id].demand
+        end
+        if route_dem > depot.nurse_cap
+            return false
+        end
+    end
+    return true
+end
+
 
 end

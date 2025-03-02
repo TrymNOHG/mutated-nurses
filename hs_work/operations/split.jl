@@ -1,14 +1,4 @@
-# module split
-
-# include("../models/Patient.jl")
-# include("../models/Depot.jl")
-# include("../models/Gene.jl")
-# include("../data_structs/Dequeue.jl")
-# import .Dequeue
-
-# export split2routes
-
-module split
+module Split
 
 using ..Models: Patient, Depot, Gene  # Access types from parent scope
 include("../data_structs/Dequeue.jl")
@@ -99,8 +89,8 @@ function split2routes(gene::Gene, depot::Depot, nbPatients::Int, penaltyCap::Flo
         end
         e = b
     end
+    filter!(x -> !isempty(x), gene.gene_r)       # Removing the empty routes
     gene.fitness = -minCost
-
     return gene.fitness
 end
 end
