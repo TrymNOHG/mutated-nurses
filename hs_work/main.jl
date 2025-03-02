@@ -8,6 +8,8 @@ include("operations/population_init.jl")
 using .PopInit
 include("operations/split.jl")
 using .split
+include("operations/crossover.jl")
+using .crossovers
 
 using DataFrames, BenchmarkTools, Statistics, Serialization
 init_mu = 10
@@ -49,6 +51,7 @@ genetic_pool = Population(
 
 genetic_pool.gene_length = n_col-1
 all_init_genes = random_pop(genetic_pool.mu, genetic_pool.gene_length)
+
 
 for (g_no, gene_seq) in enumerate(all_init_genes)
     curr_gene = genetic_pool.genes[g_no]
