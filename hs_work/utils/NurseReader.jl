@@ -1,10 +1,16 @@
-module NurseReader
-    using JSON3
-    using DataFrames
-    using Serialization
+# module NurseReader
+#     using JSON3
+#     using DataFrames
+#     using Serialization
 
-    include("../models/Patient.jl")
-    include("../models/Depot.jl")
+#     include("../models/Patient.jl")
+#     include("../models/Depot.jl")
+
+#     export extract_nurse_data, load_data
+
+module NurseReader
+    using JSON3, DataFrames, Serialization
+    using ..Models  # Import types from Models module
 
     export extract_nurse_data, load_data
 
@@ -23,14 +29,15 @@ module NurseReader
         travel_time_table = json_obj.travel_times
         n = length(travel_time_table)
         m = length(travel_time_table[1])
-        flattened = Vector{Float64}(undef, n*m)
+        flattened = Vector{Float32}(undef, n*m)
         for (i, row) in enumerate(travel_time_table)
-            row_vals = Float64.(row)
+            row_vals = Float32.(row)
             flattened[(i-1)*m + 1 : i*m] = row_vals
         end
         travel_time_array = Tuple(flattened)
         n_col = m
         tt_tuple = travel_time_array
+        # return(depot, patients, tt_tuple, n_col)
         data = (depot, patients, tt_tuple, n_col)
         serialize(save_path, data)
     end
@@ -44,52 +51,3 @@ module NurseReader
     # end
 
 end
-
-
-# module NurseReader
-#     using JSON
-#     using DataFrames
-#     using Base.Threads
-#     export extract_nurse_data
-#     struct Patient
-#         id::Int
-#         x_coord::Int
-#         y_coord::Int
-#         demand::Int
-#         start_time::Int
-#         end_time::Int
-#         care_time::Int
-#     end
-
-#     struct Depot
-#         num_nurses::Int
-#         nurse_cap::Int
-#         benchmark::Float64
-#         return_time::Int
-#     end
-
-#     function extract_nurse_data(file_path::String)
-#         # Parse JSON file
-#         json_data = JSON.parsefile(file_path)
-
-#         # Convert patients from Dict{String} to Vector{Patient} with sorted IDs
-#         patients = Patient[
-#             Patient(parse(Int, id), p["x_coord"], p["y_coord"], p["demand"], p["start_time"], p["end_time"], p["care_time"])
-#             for (id, p) in sort(json_data["patients"], by=x->parse(Int, x[1]))
-#         ]
-
-#         # Extract depot info
-#         depot = Depot(
-#             json_data["nbr_nurses"],
-#             json_data["capacity_nurse"],
-#             json_data["benchmark"],
-#             json_data["depot"]["return_time"]
-#         )
-
-#         # Convert travel_times to a matrix
-#         travel_time_matrix = reduce(hcat, json_data["travel_times"])
-#         n_col = size(travel_time_matrix, 2)
-
-#         return depot, patients, travel_time_matrix, n_col
-#     end
-# end

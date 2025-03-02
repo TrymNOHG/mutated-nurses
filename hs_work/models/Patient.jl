@@ -1,4 +1,4 @@
-struct Patient
+mutable struct Patient
     id::Int
     x_coord::Int
     y_coord::Int

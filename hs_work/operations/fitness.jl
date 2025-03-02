@@ -1,8 +1,8 @@
 include("split.jl")
+using .split
 
 module fitness
 
-import split
 export generic_fitness
 
 function generic_fitness(gene::Vector{Integer}, time_matrix::Vector{Vector{Integer}}, patient_demands::Vector{Integer}, nurse_cap::Integer, nurse_n::Integer)
