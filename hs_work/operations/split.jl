@@ -99,7 +99,8 @@ function split2routes(gene::Gene, depot::Depot, nbPatients::Int, penaltyCap::Flo
         end
         e = b
     end
+    gene.fitness = -minCost
 
-    return (e=0)
+    return gene.fitness
 end
 end

@@ -75,8 +75,10 @@ end
 maxdem = maximum(dem_list)
 penaltyCapacity::Float32 = max(0.1f0, min(1000.0f0, (maxDist / Float32(maxdem))))
 
-@time for curr_gene in genetic_pool.genes
-    split2routes(curr_gene, depot, genetic_pool.gene_length, penaltyCapacity)
+@time for (iter,curr_gene) in enumerate(genetic_pool.genes)
+    fitnes_rec = 0
+    fitnes_rec = split2routes(curr_gene, depot, genetic_pool.gene_length, penaltyCapacity)
+    genetic_pool.fitness_array[iter] = fitnes_rec
     # break
 end
 println("-----------------")
@@ -112,3 +114,4 @@ end
 # println("Average demand: ", sum_demand/routes_checked)
 # println("Route list: ", route_list)
 # println(final_sample_value)
+println(genetic_pool.fitness_array)
