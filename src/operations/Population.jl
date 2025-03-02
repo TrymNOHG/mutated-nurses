@@ -6,7 +6,7 @@ import Random.shuffle!
 
 include("../models/Solution.jl")
 
-export init_permutation, init_bitstring, init_permutation_specific, repair!
+export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible
 
 # Function to initialize different encodings such as bitstring, permutation, etc.
 
@@ -146,7 +146,49 @@ end
 # at the same time build a list of the earliest?
 # Linearly try and insert the violations into the route in order to fulfill the time-window constraint.
 
-function is_feasible(individual, patients)
+function is_feasible(individual, patients, depot, travel_time_table)
+    # if length(Set(individual.values)) != size(patients, 1)
+    #     return false
+    # end
+    multiplier = 1
+
+    for i in 0:size(individual.indices, 1)
+        if i == 0
+            route = individual.values[1:individual.indices[1] - 1]
+        elseif i == size(individual.indices, 1)
+            route = individual.values[individual.indices[i]:end]
+        else
+            route = individual.values[individual.indices[i]:individual.indices[i+1] - 1]
+        end
+        time = 0
+        demand = 0
+        from = 1
+        # println()
+        for (i, patient) in enumerate(route)
+            # println(patient)
+            # println(patients[patient])
+            demand += patients[patient].care_time
+            to = i + 1
+            time += travel_time_table[from][to]
+            if time < patients[patient].start_time
+                time = patients[patient].start_time + patients[patient].care_time
+                from = to
+            elseif patients[patient].start_time <= time <= patients[patient].end_time - patients[patient].care_time
+                time += patients[patient].care_time
+                from = to
+            else
+                # println(time)
+                # println("Time window violation")
+                multiplier += 1
+                # return false
+            end
+        end
+        if demand > depot.nurse_cap || time > depot.return_time
+            multiplier += 0.5
+        end
+    end
+
+    return multiplier == 1, multiplier
     # Check demand
     # Check scheduling
     # Check return time

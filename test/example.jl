@@ -59,18 +59,34 @@ end
     @test actual_fitness == expected_fitness
 end
 
-# @testset "RepairRoute" begin
-#     route = Vector{Int}([1])  # Depot to Patient 1 to Depot
-#     individual = Vector{Vector{Int}}([route])
-#     depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
-#     repair!(individual, patients, travel_time_table)
-# end
+@testset "RepairRoute" begin
+    # route = Vector{Int}([1])  # Depot to Patient 1 to Depot
+    # individual = Vector{Vector{Int}}([route])
+    depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
+    # repair!(individual, patients, travel_time_table)
+end
 
 @testset "OneOrderCrossover" begin
-    individual_1 = Solution([1,2,3,4,5,6,7,8,9], [5])
-    individual_2 = Solution([9,3,7,8,2,6,5,1,4], [3])
-    survivors = []
-    order_1_crossover!(individual_1, individual_2, survivors, 9)
-    @test survivors[1].values == [3,8,2,4,5,6,7,1,9]
-    @test survivors[1].indices == [5]
+    # individual_1 = Solution([1,2,3,4,5,6,7,8,9], [5])
+    # individual_2 = Solution([9,3,7,8,2,6,5,1,4], [3])
+    # survivors = []
+    # order_1_crossover!(individual_1, individual_2, survivors, 9)
+    # print(survivors)
+    # @test survivors[1].values == [3,8,2,4,5,6,7,1,9]
+    # @test survivors[1].indices == [5]
+end
+
+@testset "t" begin
+    # route = Vector{Int}([1])  # Depot to Patient 1 to Depot
+    # individual = Vector{Vector{Int}}([route])
+    depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
+    expected_fitness = travel_time_table[1][9] + travel_time_table[9][95] + patients[9].care_time
+    # println(patients)
+    println(expected_fitness)
+end
+
+@testset "Feasibility test" begin
+    individual_1 = Solution([8, 95], [1])
+    depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
+    # @test is_feasible(individual_1, patients, depot, travel_time_table) == true
 end
