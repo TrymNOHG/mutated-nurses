@@ -50,5 +50,3 @@ for gen_iter in 1:max_iter
     end
 end            
 
-println(genetic_pool.infeas_genes)
-println(genetic_pool.feas_genes)
