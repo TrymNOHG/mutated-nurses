@@ -90,3 +90,13 @@ end
     depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
     # @test is_feasible(individual_1, patients, depot, travel_time_table) == true
 end
+
+@testset "PMX Test" begin
+    individual_1 = Solution([1,2,3,4,5,6,7,8,9], [1])
+    individual_2 = Solution([9,3,7,8,2,6,5,1,4], [2])
+    survivors = []
+    PMX!(individual_1, individual_2, survivors, 9)
+    print(survivors)
+    @test survivors[1].values == [9,3,2,4,5,6,7,1,8]
+    @test survivors[1].indices == [1]
+end

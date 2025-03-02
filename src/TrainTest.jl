@@ -35,7 +35,7 @@ function run()
         size(patients, 1),  # Genotype size
         1000,                 # Population size
         1000,                 # Number of generations
-        0.1,                # Cross-over rate
+        0.6,                # Cross-over rate
         0.05,               # Mutate rate
         "./src/logs/kp/"    # History directory
     )
@@ -80,6 +80,7 @@ function run()
         # pop_swap_mut, pop_insert_mut, pop_scramble_mut, pop_scramble_seg_mut
         for solution in survivors
             pop_insert_mut!(solution.values, config.mutate_rate)
+            inversion_mut!(solution.values, config.mutate_rate)
             pop_scramble_seg_mut!(solution.values, config.mutate_rate)
             if rand() < 0.3
                 route_mutation!(solution.indices,  config.genotype_size, config.mutate_rate)

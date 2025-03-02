@@ -12,7 +12,7 @@ include("operations/crossover.jl")
 using .crossovers
 
 using DataFrames, BenchmarkTools, Statistics, Serialization
-init_mu = 10
+init_mu = 1000
 init_lambda = 3
 maxdem = 0
 # filepath = "train\\train_0.json"
@@ -112,9 +112,9 @@ route_list = zeros(init_mu)     # contains number of routes per gene
     global final_sample_value = sample
 end
 
-# println("Total Demand Violations: ", demand_violation)
-# println("Total routes checked: ", routes_checked)
-# println("Average demand: ", sum_demand/routes_checked)
-# println("Route list: ", route_list)
-# println(final_sample_value)
+println("Total Demand Violations: ", demand_violation)
+println("Total routes checked: ", routes_checked)
+println("Average demand: ", sum_demand/routes_checked)
+println("Route list: ", route_list)
+println(final_sample_value)
 println(genetic_pool.fitness_array)

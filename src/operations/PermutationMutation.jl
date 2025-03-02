@@ -6,7 +6,7 @@ import Random.randperm!
 import Random.shuffle!
 import Random.Xoshiro
 
-export pop_swap_mut!, pop_insert_mut!, pop_scramble_mut!, pop_scramble_seg_mut!, route_mutation!
+export pop_swap_mut!, pop_insert_mut!, pop_scramble_mut!, pop_scramble_seg_mut!, route_mutation!, inversion_mut!
 
 function pop_replace!(genotype::Vector{Int64}, i_1, i_2)
     """
@@ -80,7 +80,15 @@ function pop_scramble_seg_mut!(genotype::Vector{Int64}, mutation_rate::Float16)
     end
 end 
 
-function inversion_mut(genotype::Vector{Int64}, mutation_rate::Float16)
+function inversion_mut!(genotype::Vector{Int64}, mutation_rate::Float16)
+    if rand() < mutation_rate
+
+        rand_1 = rand(1:size(genotype, 1))
+        rand_2 = rand(1:size(genotype, 1))
+        start_index = min(rand_1, rand_2)
+        end_index = max(rand_1, rand_2)
+        reverse!(genotype, start_index, end_index)
+    end
 end 
 
 function route_mutation!(indices::Vector{Int64}, num_patients::Int64, mutate_rate::Float16)
