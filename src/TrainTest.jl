@@ -33,9 +33,9 @@ depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
 function run()
     config = Config(
         size(patients, 1),  # Genotype size
-        1000,                 # Population size
+        10000,                 # Population size
         1000,                 # Number of generations
-        0.6,                # Cross-over rate
+        0.8,                # Cross-over rate
         0.05,               # Mutate rate
         "./src/logs/kp/"    # History directory
     )
@@ -79,13 +79,13 @@ function run()
         println("Mutation")
         # pop_swap_mut, pop_insert_mut, pop_scramble_mut, pop_scramble_seg_mut
         for solution in survivors
-            pop_insert_mut!(solution.values, config.mutate_rate)
+            # pop_insert_mut!(solution.values, config.mutate_rate)
             inversion_mut!(solution.values, config.mutate_rate)
-            pop_scramble_seg_mut!(solution.values, config.mutate_rate)
-            if rand() < 0.3
+            # pop_scramble_seg_mut!(solution.values, config.mutate_rate)
+            if rand() < 0.001
                 route_mutation!(solution.indices,  config.genotype_size, config.mutate_rate)
             end
-            repair!(solution, patients, travel_time_table)
+            # repair!(solution, patients, travel_time_table)
         end
 
         # Survivor Selection
