@@ -1,6 +1,6 @@
 module Recombination
 
-export perform_crossover, order_1_crossover!, PMX!, gen_edge_table, TBX!
+export perform_crossover, order_1_crossover!, PMX!, gen_edge_table, TBX!, edge_3_crossover!
 
 import Random.shuffle!
 
@@ -23,8 +23,10 @@ function perform_crossover(parents, num_patients, cross_rate)
         if rand() < cross_rate
             # TBX!(parent_1, parent_2, survivors, num_patients)
             # TBX!(parent_2, parent_1, survivors, num_patients)
-            PMX!(parent_1, parent_2, survivors, num_patients)
-            PMX!(parent_1, parent_2, survivors, num_patients)
+            # PMX!(parent_1, parent_2, survivors, num_patients)
+            # PMX!(parent_1, parent_2, survivors, num_patients)
+            edge_3_crossover!(parent_1, parent_2, survivors, num_patients)
+            edge_3_crossover!(parent_2, parent_1, survivors, num_patients)
             # order_1_crossover!(parent_1, parent_2, survivors, num_patients)
             # order_1_crossover!(parent_2, parent_1, survivors, num_patients)
         else
@@ -136,36 +138,85 @@ function gen_edge_table(parent_1_vals, parent_2_vals)
     for i in 1:size(parent_1_vals, 1)
         left_index = i > 1 ? i - 1 : size(parent_1_vals, 1) 
         right_index = i < size(parent_1_vals, 1) ? i + 1 : 1
-        # println(parent_1_vals[i])
-        # println(i)
-        # println(left_index)
-        # println(parent_1_vals[left_index])
-        # println(parent_1_vals[right_index])
         p_1_left = parent_1_vals[left_index]
         p_1_right = parent_1_vals[right_index]
-        p_2_left = parent_1_vals[left_index]
-        p_2_right = parent_1_vals[right_index]
-        # if 
-        push!(edge_table[parent_1_vals[i]], )
-        push!(edge_table[parent_1_vals[i]], parent_1_vals[right_index])
-        push!(edge_table[parent_2_vals[i]], parent_2_vals[left_index])
-        push!(edge_table[parent_2_vals[i]], parent_2_vals[right_index])
+        p_2_left = parent_2_vals[left_index]
+        p_2_right = parent_2_vals[right_index]
+        push!(edge_table[parent_1_vals[i]], p_1_left)
+        push!(edge_table[parent_1_vals[i]], p_1_right)
+        push!(edge_table[parent_2_vals[i]], p_2_left)
+        push!(edge_table[parent_2_vals[i]], p_2_right)
     end
-    println(edge_table)
+    return edge_table
+end
+
+function add_edge!(results, edge_table, index)
+    push!(results, index)
+    for edges in edge_table
+        deleted = 0
+        for i in 1:size(edges, 1)
+            if edges[i-deleted] == index
+                deleteat!(edges, i-deleted)
+                deleted += 1
+            end
+        end
+    end
+end
+
+function find_common_edge(edges)
+    for (i, val) in enumerate(edges)
+        if i < size(edges, 1)
+            for other_val in edges[i+1:end]
+                if val == other_val 
+                    # Then, common edge found.
+                    return true, val
+                end
+            end
+        end
+    end
+    return false, 0
+end
+
+function find_shortest_list(edge_table, edges)
+    candidates = []
+    shortest_length = 4
+    for val in edges
+        len = length(Set{Int32}(edge_table[val]))
+        if len < shortest_length
+            candidates = [val]
+            shortest_length = len
+        elseif len == shortest_length
+            push!(candidates, val)
+        end
+    end
+    return candidates
 end
 
 function edge_3_crossover!(parent_1, parent_2, survivors, num_patients)
-#     1. Construct the edge table
-# 2. Pick an initial element at random and put it in the offspring
-# 3. Set the variable current element = entry
-# 4. Remove all references to current element from the table
-# 5. Examine list for current element
-# • If there is a common edge, pick that to be the next element
-# • Otherwise pick the entry in the list which itself has the shortest list
-# • Ties are split at random
-# 6. In the case of reaching an empty list, the other end of the offspring is examined for extension; otherwise a new element is chosen at random
+    # Need to implement the detection/representation of common edges better.
+    edge_table = gen_edge_table(parent_1.values, parent_2.values)
+    current_index = rand(1:num_patients)
+    result = []
+    add_edge!(result, edge_table, current_index)
+    while size(result, 1) < num_patients
+        edges = edge_table[current_index]
+        if size(edges, 1) == 0
+            current_index = rand(1:num_patients) # Seems like it can take a while to find the last value...
+            continue
+        end
+        is_common_edge, val = find_common_edge(edges)
+        if is_common_edge == true
+            current_index = val
+        else
+            # No common edge, then find entry with shortest list, else random
+            shortest_list_candidates = find_shortest_list(edge_table, edges)
+            current_index = shortest_list_candidates[rand(1:size(shortest_list_candidates, 1))]
+        end
+        add_edge!(result, edge_table, current_index)
+    end
 
-    child = Solution(child_values, parent_1.indices)
+    # Random -> Shortest_list (from random's edges) -> Common Edge
+    child = Solution(result, parent_1.indices)
     push!(survivors, child)
 end
 

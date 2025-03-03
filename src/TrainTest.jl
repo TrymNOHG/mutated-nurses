@@ -35,8 +35,8 @@ function run()
         size(patients, 1),  # Genotype size
         10000,                 # Population size
         1000,                 # Number of generations
-        0.8,                # Cross-over rate
-        0.05,               # Mutate rate
+        0.5,                # Cross-over rate
+        0.1,               # Mutate rate
         "./src/logs/kp/"    # History directory
     )
         
@@ -63,7 +63,7 @@ function run()
         parents = tournament_select(
             population,             # Population 
             size(population, 1),                     # Number of parents selected (lambda)
-            10,                     # k - Number of participants in the tournament
+            5,                     # k - Number of participants in the tournament
             travel_time_table,       # The time it takes to travel between patients
             patients,               # Patient information
             depot                   # Depot info

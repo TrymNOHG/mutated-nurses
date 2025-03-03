@@ -114,3 +114,10 @@ end
     survivors = []
     TBX!(individual_1, individual_2, survivors, 6)
 end
+
+@testset "edge_3_crossover Test" begin
+    individual_1 = Solution([1,2,3,4,5,6,7,8,9], [1])
+    individual_2 = Solution([9,3,7,8,2,6,5,1,4], [2])
+    survivors = []
+    edge_3_crossover!(individual_1, individual_2, survivors, 9)
+end
