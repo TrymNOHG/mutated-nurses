@@ -8,139 +8,35 @@ include("../models/Solution.jl")
 
 export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible
 
-# Function to initialize different encodings such as bitstring, permutation, etc.
+# Feasible solutions for initial populations are first generated using a sequential insertion heuristic in which customers are inserted in 
+#     random order at randomly chosen insertion positions within routes. This strategy is fast and simple while ensuring unbiased solution generation. 
+#     The initialization procedure then proceeds as follows:
 
-function gen_route_individual(num_nurses::Integer, num_patients::Integer)
-    nurse_ids = Vector{Integer}([])
-    num_patients_per_nurse = num_patients ÷ num_nurses
-    rest = num_patients % num_nurses
-    for id in 0:num_nurses-1
-        id <<= 4
-        for index in 0:num_patients_per_nurse - 1
-            # println(id | index)
-            push!(nurse_ids, id | index)
-        end
-        if rest > 0
-            push!(nurse_ids, id | num_patients_per_nurse)
-            rest -= 1
-        end
-    end
-    # println(nurse_ids)
-    return shuffle!(Xoshiro(), nurse_ids)
-end
-
-
-# Easiest implementation first
-# function gen_perm_individual(num_nurses::Integer, num_patients::Integer)
-#     """
-#     This function generates an individual where the genotype consists of an n-vector of variable vectors. n is the number of nurses. The sum of the sizes of the variable 
-#     vectors equals the number of patients. Furthermore, the entries in the vectors form a set of patient ids.
-#     """
-#     nurses = [[] for _ in 1:num_nurses]
-#     patients = [i for i in 1:num_patients]
-#     while size(patients, 1) > 0
-#         nurse_id = rand(1:num_nurses)
-#         push!(nurses[nurse_id], pop!(patients))
-#     end
-#     return nurses
-# end
-
-function gen_perm_individual(num_nurses::Integer, num_patients::Integer)
-    """
-    This function generates an individual where the genotype consists of an n-vector of variable vectors. n is the number of nurses. The sum of the sizes of the variable 
-    vectors equals the number of patients. Furthermore, the entries in the vectors form a set of patient ids.
-    """
+function init_rand_pop(num_patients, num_nurses)
+    gene_r = [[] for _ in 1:num_nurses]
     patients = [i for i in 1:num_patients]
     shuffle!(patients)
-    avg_route = num_patients ÷ num_nurses
-    nurse_indices = []
-    current = 0
-    for i in 1:num_nurses-1
-        current += rand(1:avg_route)
-        push!(nurse_indices, current)
+    for i in patients:
+        push!(gene_r[rand(1:num_nurses)], i)
+    end
+    return gene_r
+end
+
+function init_populations(num_patients, num_nurses, mu, n_p)
+    populations = [init_rand_pop(num_patients, num_nurses) for _ in 1:2]
+    for pop in populations
+        # Generate two populations seemingly random? 
+        for i in 1:n_p
+            # Apparently the next steps:
+            # Generate a new solution Sj using the EE_M mutator (defined in Section 2.3.2)
+            # Add Sj in Pop_x
+
+            # 
+        end
+        # sequence = collect(Iterators.flatten(gene_r)) # Way to flatten the 2-d array
     end
 
-    return Solution(patients, nurse_indices)
 end
-
-function init_permutation_general(individual_size::Integer, pop_size::Integer)
-    return [randperm!(Xoshiro(), individual_size) for _ in 1:pop_size]
-end
-
-function init_permutation_specific(num_nurses::Integer, num_patients::Integer, pop_size::Integer)
-    return [gen_perm_individual(num_nurses, num_patients) for _ in 1:pop_size]
-end
-
-function init_bitstring(individual_size::Integer, pop_size::Integer)
-    return [bitrand(Xoshiro(), num_bits) for _ in 1:pop_size]
-end
-
-function repair!(individual, patients, travel_time_table)
-    """
-    Does not repair all currently
-    """
-    # Check if within time window
-    # println(size(individual, 1))
-    for i in 0:size(individual.indices, 1)
-        if i == 0
-            route = individual.values[1:individual.indices[1] - 1]
-        elseif i == size(individual.indices, 1)
-            route = individual.values[individual.indices[i]:end]
-        else
-            route = individual.values[individual.indices[i]:individual.indices[i+1] - 1]
-        end
-        violations = locate_violations!(route, patients, travel_time_table)
-        # Is it best to try and organize the violations before trying to insert them into the route again? What is faster?
-        # Start off with brute-force
-        # Could do some smart interval scheduling things later...
-        persistent_violations = []
-        while size(violations, 1) > 0 
-            current_violation = pop!(violations)
-            persist = true
-            for (i, patient) in enumerate(route)
-                insert!(route, i, current_violation)
-                new_violations = locate_violations!(route, patients, travel_time_table)
-                if size(new_violations, 1) == 0
-                    persist = false
-                    break
-                end
-            end
-            if persist == true
-                insert!(route, size(route, 1), current_violation)
-                new_violations = locate_violations!(route, patients, travel_time_table)
-                if size(new_violations, 1) != 0
-                    push!(persistent_violations, current_violation)
-                end
-            end
-        end
-        push!(route, persistent_violations...)
-        # println(persistent_violations)
-    end
-end
-
-function locate_violations!(route, patients, travel_time_table)
-    violations = []
-    time = 0
-    from = 1
-    for (i, patient) in enumerate(route)
-        to = i + 1
-        time += travel_time_table[from][to]
-        if time < patients[patient].start_time
-            time = patients[patient].start_time + patients[patient].care_time
-            from = to
-        elseif patients[patient].start_time <= time <= patients[patient].end_time - patients[patient].care_time
-            time += patients[patient].care_time
-            from = to
-        else
-            push!(violations, route[i])
-            deleteat!(route, i)
-            time -= travel_time_table[from][to]
-        end
-    end
-    return violations
-end
-
-
 
 # Go through the current route and collect all violations
 # at the same time build a list of the earliest?

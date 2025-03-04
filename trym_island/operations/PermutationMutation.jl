@@ -121,9 +121,11 @@ end
 # Centroids should be cached...
 
 # Missing from EE_M:
+# Need to return a new solution, instead of changing the old one.
 # Actual fitness function used.
 
-function EE_M!(individual, patients) # ::Gene
+function EE_M(individual, patients) # ::Gene
+    
     centroids = []
     for route in individual.gene_r
         push!(centroids, (get_centroid(route, patients)))
