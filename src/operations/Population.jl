@@ -104,7 +104,7 @@ function init_permutation_general(individual_size::Integer, pop_size::Integer)
 end
 
 function init_permutation_specific(num_nurses::Integer, num_patients::Integer, pop_size::Integer, travel_time_table)
-    return [gen_perm_individual(num_nurses, num_patients) for _ in 1:pop_size]
+    return [gen_heuristic_perm_individual(num_nurses, num_patients, travel_time_table) for _ in 1:pop_size]
 end
 
 function init_bitstring(individual_size::Integer, pop_size::Integer)

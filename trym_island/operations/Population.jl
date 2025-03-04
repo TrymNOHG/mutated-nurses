@@ -9,8 +9,8 @@ include("../models/Solution.jl")
 export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible
 
 # Feasible solutions for initial populations are first generated using a sequential insertion heuristic in which customers are inserted in 
-#     random order at randomly chosen insertion positions within routes. This strategy is fast and simple while ensuring unbiased solution generation. 
-#     The initialization procedure then proceeds as follows:
+# random order at randomly chosen insertion positions within routes. This strategy is fast and simple while ensuring unbiased solution generation. 
+# The initialization procedure then proceeds as follows:
 
 function init_rand_pop(num_patients, num_nurses)
     gene_r = [[] for _ in 1:num_nurses]
@@ -35,6 +35,39 @@ function init_populations(num_patients, num_nurses, mu, n_p)
         end
         # sequence = collect(Iterators.flatten(gene_r)) # Way to flatten the 2-d array
     end
+
+end
+
+function re_init(num_nurses, num_patients)
+    patients = [i for i in 1:num_patients]
+    shuffle!(patients)
+    routes = [[pop!(paitents)] for i in 1:num_nurses]
+
+    i = 0
+    # It seems that all of the remaining patients are ranked according to their regret cost.
+    # The patients with the highest regret costs are inserted first, since they will have fewer good options later.
+
+    # TODO:
+    # Create function to calculate the regret cost of a given customer.
+    # 1. Collect all feasible of these for all remaining patients.
+    # 2. Sort based on their regret costs.
+    # 3. Insert patient with highest regret cost. Repeat step 1.
+    # All patients that currently have infeasible insertions will be collected. Then, an extended insertion regret cost function is applied. 
+
+
+    while i < size(patients, 1)
+        centroids = get_all_centroids(routes)
+        closest_neighbors = get_route_neighborhood(centroids, patient_route_id, patient)
+        # inserted = best_apply_neighbor_insert!(typemax(Int32), closest_neighbors, routes, patient_id)
+        inserted = minimum_insertion_regret(closest_neighbors, routes, patient_id)
+        
+        if !inserted
+            #
+        end
+    end 
+
+    # Insert in locations that minimize cost and do not violate time-window constraint.
+    # Here, it might be smart to keep track of the time window and update it.
 
 end
 
@@ -91,19 +124,6 @@ function is_feasible(individual, patients, depot, travel_time_table)
     # Could also check that each patient is only visited once (but this is a bit unnecessary)
 end
 
-function correct_format(solution)
-    actual_solution = []
-    for i in 0:size(individual.indices, 1)
-        if i == 0
-            route = individual.values[1:individual.indices[1] - 1]
-        elseif i == size(individual.indices, 1)
-            route = individual.values[individual.indices[i]:end]
-        else
-            route = individual.values[individual.indices[i]:individual.indices[i+1] - 1]
-        end
-        actual_solution.append(route)
-    end
-    println(actual_solution)
-end
+
 
 end

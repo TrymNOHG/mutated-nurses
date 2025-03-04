@@ -18,8 +18,6 @@ function pop_replace!(genotype::Vector{Int64}, i_1, i_2)
     genotype[i_2] = temp
 end
 
-# Create a function that swaps nurses intra population and repairs the broken routes.
-
 function pop_swap_mut!(genotype::Vector{Int64}, mutation_rate::Float16)
     for (i, value) in enumerate(genotype)
         if rand() < mutation_rate
@@ -106,20 +104,6 @@ function route_mutation!(indices::Vector{Int64}, num_patients::Int64, mutate_rat
     end
 end
 
-function get_centroid(route, patients)
-    sum_x = 0
-    sum_y = 0
-    for patient in route
-        sum_x += patients[patient].x_coord
-        sum_y += patients[patient].y_coord
-    end
-    avg_x = sum_x / size(route, 1)
-    avg_y = sum_y / size(route, 1)
-    return avg_x, avg_y
-end
-
-# Centroids should be cached...
-
 # Missing from EE_M:
 # Need to return a new solution, instead of changing the old one.
 # Actual fitness function used.
@@ -134,52 +118,9 @@ function EE_M(individual, patients) # ::Gene
     for (route_index, route) in enumerate(individual.gene_r)
         for (i, patient_id) in enumerate(route)
             # Finds 2 closest tours based on minimum distance to centroids
-            neighbors = [] # Shortest distance will be kept at end of list
-            patient = patients[patiend_id]
-            for (centroid_id, centroid) in enumerate(centroids) 
-                if centroid_id == route_index
-                    continue
-                end
-                distance = sqrt((centroid[1] - patient.x_coord)^2 + (centroid[2] - patient.y_coord)^2)
-                if size(neighbors, 1) < 1
-                    push!(neighbors, [distance, centroid_id])
-                elseif size(neighbors) < 2
-                    if distance < neighbors[1][1]
-                        push!(neighbors, neighbors[1])
-                        neighbors[1] = [distance, centroid_id]
-                    else
-                        push!(neighbors, [distance, centroid_id])
-                    end
-                elseif distance < neighbors[2][1]
-                    if distance > neighbors[1][1]
-                        neighbors[2] = [distance, centroid_id]
-                    else
-                        neighbors[2] = neighbors[1]
-                        neighbors[1] = [distance, centroid_id]
-                    end
-                end
-            end
-
-            current_fitness = individual.fitness
+            neighbors = get_route_neighborhood(centroids, route_index, patients[patient_id])
             deleteat!(route, i) # Remove patient from its current route
-            better_solution = false
-            for centroid_info in neighbors
-                route_id = centroid_info[2]
-                neighbor_route = individual.gene_r[route_id]
-                for i in size(neighbor_route, 1)
-                    insert!(neighbor_route, patiend_id, i)
-                    new_fitness = 1234 # I need to add the actual calculation of new fitness
-                    if new_fitness < current_fitness
-                        better_solution = true # Mutation was successful.
-                        break
-                    end
-                    deleteat!(neighbor_route, i) # Remove patient from the neighbor route
-                end
-                if better_solution == true
-                    break
-                end
-                # Insert patient into every spot in the first closest neighbor. If an improvement occurs, immediately accept it.
-            end
+            better_solution = first_apply_neighbor_insert!(individual.fitness, neighbors, routes, patient_id)
             if better_solution == false
                 insert!(route, patient_id, i) # No better position...
             end
