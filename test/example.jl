@@ -121,3 +121,8 @@ end
     survivors = []
     edge_3_crossover!(individual_1, individual_2, survivors, 9)
 end
+
+@testset "Heuristic Pop Test" begin
+    depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
+    gen_heuristic_perm_individual(depot.num_nurses, size(patients, 1), travel_time_table)
+end

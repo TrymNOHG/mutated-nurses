@@ -6,7 +6,7 @@ import Random.shuffle!
 
 include("../models/Solution.jl")
 
-export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible
+export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible, gen_heuristic_perm_individual
 
 # Function to initialize different encodings such as bitstring, permutation, etc.
 
@@ -63,11 +63,47 @@ function gen_perm_individual(num_nurses::Integer, num_patients::Integer)
     return Solution(patients, nurse_indices)
 end
 
+
+function gen_heuristic_perm_individual(num_nurses::Integer, num_patients::Integer, travel_time_table)
+    """
+    This function generates an individual where the genotype consists of an n-vector of variable vectors. n is the number of nurses. The sum of the sizes of the variable 
+    vectors equals the number of patients. Furthermore, the entries in the vectors form a set of patient ids.
+    """
+    patients = [i for i in 1:num_patients]
+    shuffle!(patients)
+
+    nurse_indices = [i+1 for i in 1:num_nurses-1]
+    routes = []
+    for i in 1:num_nurses
+        push!(routes, [pop!(patients)])
+    end
+
+    while size(patients, 1) > 0
+        next_patient = pop!(patients)
+        choice = 0
+        best_val = typemax(Int32)
+
+        for (i, route) in enumerate(routes)
+            value = travel_time_table[route[end]][next_patient] + travel_time_table[next_patient][1] - travel_time_table[route[end]][1] + 1 * size(route, 1)
+            if value < best_val
+                choice = i
+                best_val = value
+            end
+        end
+        push!(routes[choice], next_patient)
+        for i in choice:num_nurses-1
+            nurse_indices[i] += 1
+        end
+    end
+    patients = collect(Iterators.flatten(routes))
+    return Solution(patients, nurse_indices)
+end
+
 function init_permutation_general(individual_size::Integer, pop_size::Integer)
     return [randperm!(Xoshiro(), individual_size) for _ in 1:pop_size]
 end
 
-function init_permutation_specific(num_nurses::Integer, num_patients::Integer, pop_size::Integer)
+function init_permutation_specific(num_nurses::Integer, num_patients::Integer, pop_size::Integer, travel_time_table)
     return [gen_perm_individual(num_nurses, num_patients) for _ in 1:pop_size]
 end
 
@@ -152,6 +188,7 @@ function is_feasible(individual, patients, depot, travel_time_table)
     # end
     multiplier = 1
 
+    total_time = 0 
     for i in 0:size(individual.indices, 1)
         if i == 0
             route = individual.values[1:individual.indices[1] - 1]
@@ -179,16 +216,17 @@ function is_feasible(individual, patients, depot, travel_time_table)
             else
                 # println(time)
                 # println("Time window violation")
-                multiplier += 1
+                multiplier += 2
                 # return false
             end
         end
+        total_time += travel_time_table[from][1] + time
         if demand > depot.nurse_cap || time > depot.return_time
-            multiplier += 0.5
+            multiplier += 2
         end
     end
 
-    return multiplier == 1, multiplier
+    return multiplier == 1, multiplier, total_time
     # Check demand
     # Check scheduling
     # Check return time
