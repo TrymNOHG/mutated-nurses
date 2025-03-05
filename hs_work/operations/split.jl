@@ -6,22 +6,50 @@ import .Dequeue
 
 export split2routes, splitbellman
 
+function tw_calc(p::Int, i::Int, gene::Gene, patients::Vector{Patient}, depot::Depot, time_matrix)
+    route = gene.sequence[p:i]
+    prev = 1
+    current_time = 0
+    route_tw = 0
+    for customer in route
+        customer_req = patients[customer].demand
+        customer_start = patients[customer].start_time
+        customer_end = patients[customer].end_time
+        tr = current_time + time_matrix(prev, customer+1)
+        if tr > customer_end
+            tw_induced = tr-customer_end
+            route_tw += tw_induced
+            tr = customer_end
+        end
+        if tr < customer_start
+            wait_time = customer_start - tr
+        else
+            wait_time = 0
+        end
+        current_time += tr + wait_time + patients[customer].care_time
+        prev = customer+1
+    end
+    return route_tw
+end
 
-function cost_of_route(p::Int, i::Int, gene::Gene, patients::Vector{Patient}, max_duration, penaltyDuration, penaltyCap::Float32, depot::Depot)
+function cost_of_route(p::Int, i::Int, gene::Gene, patients::Vector{Patient}, max_duration, penaltyDuration, penaltyCap::Float32, depot::Depot, time_matrix)
     # Compute travel time, load, and service time for the route segment
     if p == 0
         travel_time = gene.d0_x[1] + gene.sum_dist[i] + gene.dx_0[i]
         load = gene.sum_load[i]
         service_sum = gene.sum_service[i]
+        # route_tw = 0
     else
         travel_time = gene.d0_x[p+1] + (gene.sum_dist[i] - gene.sum_dist[p+1]) + gene.dx_0[i]
         load = gene.sum_load[i] - gene.sum_load[p]
         service_sum = gene.sum_service[i] - gene.sum_service[p]
+        # route_tw = tw_calc(p+1,i,gene,patients,depot,time_matrix)
     end
 
     # Total duration includes travel time and service time
     duration = travel_time + service_sum
-
+    
+    # duration = travel_time + service_sum + route_tw
     # Calculate violations
     capacity_violation = max(0.0f0, load - depot.nurse_cap)
     duration_violation = max(0.0f0, duration - max_duration)
@@ -122,7 +150,7 @@ function split2routes(gene::Gene, depot::Depot, nbPatients::Int, penaltyCap::Flo
 end
 
 
-function splitbellman(gene::Gene, depot::Depot, patients::Vector{Patient}, nbPatients::Int, penaltyCap::Float32, max_duration, penaltyDuration)
+function splitbellman(gene::Gene, depot::Depot, patients::Vector{Patient}, nbPatients::Int, penaltyCap::Float32, max_duration, penaltyDuration, time_matrix)
     maxVehicles = depot.num_nurses
 
     # Initialize DP tables
@@ -134,14 +162,14 @@ function splitbellman(gene::Gene, depot::Depot, patients::Vector{Patient}, nbPat
         for i in k:nbPatients
             if k == 1
                 # One vehicle serves all patients from 1 to i
-                potential[k, i] = cost_of_route(0, i, gene, patients, max_duration, penaltyDuration, penaltyCap, depot)
+                potential[k, i] = cost_of_route(0, i, gene, patients, max_duration, penaltyDuration, penaltyCap, depot, time_matrix)
                 pred[k, i] = 0
             else
                 # Find the minimum cost by trying all possible split points p
                 min_cost = 1.0f30
                 best_p = -1
                 for p in (k-1):(i-1)
-                    cost = potential[k-1, p] + cost_of_route(p, i, gene, patients, max_duration, penaltyDuration, penaltyCap, depot)
+                    cost = potential[k-1, p] + cost_of_route(p, i, gene, patients, max_duration, penaltyDuration, penaltyCap, depot, time_matrix)
                     if cost < min_cost
                         min_cost = cost
                         best_p = p

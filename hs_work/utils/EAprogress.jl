@@ -63,7 +63,7 @@ function pop_init(init_mu::Int, init_lambda::Int, seq_len::Int, depot::Depot, pa
     for (iter,curr_gene) in enumerate(genetic_pool.genes)
         fitnes_rec = 0
         # fitnes_rec = split2routes(curr_gene, depot, genetic_pool.gene_length, penaltyCapacity)
-        fitnes_rec = splitbellman(curr_gene, depot, patients, genetic_pool.gene_length, penaltyCapacity, depot.return_time, penaltyDuration)
+        fitnes_rec = splitbellman(curr_gene, depot, patients, genetic_pool.gene_length, penaltyCapacity, depot.return_time, penaltyDuration, time_matrix)
         genetic_pool.fitness_array[iter] = fitnes_rec
         # break
     end
