@@ -12,4 +12,5 @@ mutable struct Gene
     dnext::Vector{Float32}      # Array containg dnext for each patient in resp order. dnext is distance of xth patient to (x+1)th paient in the gene sequence
     sum_load::Vector{Int}       # Summation of demand till and including the xth patient in the sequence
     sum_dist::Vector{Float32}       # Summation of dist-k,k+1 from k = 1 till k = x-1. Here dist-k,k+1 means distance to go from kth patient to k+1th patient
+    sum_service::Vector{Float32}    # # Cumulative service time from patient 1 to x
 end

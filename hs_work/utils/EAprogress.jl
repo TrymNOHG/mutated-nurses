@@ -33,7 +33,8 @@ function pop_init(init_mu::Int, init_lambda::Int, seq_len::Int, depot::Depot, pa
         zeros(Float32, seq_len),     # dx_0
         zeros(Float32, seq_len),     # dnext
         zeros(Int, seq_len),         # sum_load
-        zeros(Float32, seq_len)      # sum_dist
+        zeros(Float32, seq_len),     # sum_dist
+        zeros(Float32, seq_len)      # sum_service
     ) for _ in 1:init_mu],
     fill(-Inf, init_mu),  # fitness_array
     Vector{Int}[],  # feas_genes
@@ -55,6 +56,7 @@ function pop_init(init_mu::Int, init_lambda::Int, seq_len::Int, depot::Depot, pa
             x == genetic_pool.gene_length ? curr_gene.dnext[x] = -Inf : curr_gene.dnext[x] = time_matrix(pat_id, curr_gene.sequence[x+1])
             x == 1 ? curr_gene.sum_load[x] = patients[pat_id].demand : curr_gene.sum_load[x] = curr_gene.sum_load[x-1] + patients[pat_id].demand
             x == 1 ? curr_gene.sum_dist[x] = 0 : curr_gene.sum_dist[x] = curr_gene.sum_dist[x-1] + curr_gene.dnext[x-1]
+            x == 1 ? curr_gene.sum_service[x] = patients[pat_id].care_time : urr_gene.sum_service[x] = curr_gene.sum_service[x-1] + patients[pat_id].care_time
         end
     end
 

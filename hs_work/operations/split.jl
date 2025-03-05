@@ -4,7 +4,7 @@ using ..Models: Patient, Depot, Gene  # Access types from parent scope
 include("../data_structs/Dequeue.jl")
 import .Dequeue
 
-export split2routes
+export split2routes, splitbellman
 
 function split2routes(gene::Gene, depot::Depot, nbPatients::Int, penaltyCap::Float32)
     potential = fill(1.e30, depot.num_nurses, nbPatients)
@@ -93,4 +93,65 @@ function split2routes(gene::Gene, depot::Depot, nbPatients::Int, penaltyCap::Flo
     gene.fitness = -minCost
     return gene.fitness
 end
+
+
+function splitbellman(gene::Gene, depot::Depot, patients::Vector{Patient}, nbPatients::Int, penaltyCap::Float32, max_duration::Float32, penaltyDuration::Float32)
+    maxVehicles = depot.num_nurses
+
+    # Initialize DP tables
+    potential = fill(1.0f30, maxVehicles, nbPatients)  # Minimum cost for k vehicles up to i patients
+    pred = fill(0, maxVehicles, nbPatients)            # Predecessor index for backtracking
+
+    # Fill the DP table
+    for k in 1:maxVehicles
+        for i in k:nbPatients
+            if k == 1
+                # One vehicle serves all patients from 1 to i
+                potential[k, i] = cost_of_route(0, i, gene, patients, max_duration, penaltyDuration, penaltyCap, depot)
+                pred[k, i] = 0
+            else
+                # Find the minimum cost by trying all possible split points p
+                min_cost = 1.0f30
+                best_p = -1
+                for p in (k-1):(i-1)
+                    cost = potential[k-1, p] + cost_of_route(p, i, gene, patients, max_duration, penaltyDuration, penaltyCap, depot)
+                    if cost < min_cost
+                        min_cost = cost
+                        best_p = p
+                    end
+                end
+                potential[k, i] = min_cost
+                pred[k, i] = best_p
+            end
+        end
+    end
+
+    # Find the optimal number of vehicles
+    minCost = 1.0f30
+    nbRoutes = 0
+    for k in 1:maxVehicles
+        if potential[k, nbPatients] < minCost
+            minCost = potential[k, nbPatients]
+            nbRoutes = k
+        end
+    end
+
+    # Reconstruct the routes
+    temp_routes = Vector{Vector{Int}}()
+    e = nbPatients
+    for k in nbRoutes:-1:1
+        b = pred[k, e]
+        route = gene.sequence[b+1:e]
+        push!(temp_routes, route)
+        e = b
+    end
+    gene.gene_r = reverse(temp_routes)
+
+    # Set fitness as the negative of the total cost (for maximization in genetic algorithms)
+    gene.fitness = -minCost
+
+    return gene.fitness
+end
+
+
 end
