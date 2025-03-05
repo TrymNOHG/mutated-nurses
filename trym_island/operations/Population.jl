@@ -38,6 +38,71 @@ function init_populations(num_patients, num_nurses, mu, n_p)
 
 end
 
+function calculate_cost(route, patients, travel_time_table)
+    """
+    This function calculates the cost of a given route. If the route contains time window violation, then that is also notified.
+    Output is therefore: cost, violates
+    """
+    from = 1
+    time = 0
+    for patient_id in route
+        to = patient_id + 1
+        time += travel_time_table[from][to]
+        if time < patients[to].start_time
+            time = patients[to].start_time + patients[to].care_time
+            from = to
+        elseif patients[to].start_time <= time <= patients[to].end_time - patients[to].care_time
+            time += patients[to].care_time
+            from = to
+        else
+            return -1, true
+        end
+    end
+    time += travel_time_table[from][1] # Return to depot
+    return time, false
+end
+
+function regret_cost(patient_id, neighbors, routes, travel_time_table)
+    min_insert_r  = []
+    for centroid_info in neighbors
+        route_id = centroid_info[2]
+        neighbor_route = routes[route_id]
+        min_insert_cost = (typemax(Int32), 0) # Fitness, position
+
+        current_route_cost, time_violation = calculate_cost(route, patients, travel_time_table)
+        if time_violation
+            throw(Error("Time violation should not occur here"))
+        end
+
+        for i in 1:size(neighbor_route, 1)+1 # Need to check insertion at end as well.
+            # Need to re-evaluate the whole route because an insertion could ruin for the patients...
+            insert!(neighbor_route, i, patient_id)
+            cost, time_violation = calculate_cost(route, patients, travel_time_table)
+            insert_cost = cost - current_route_cost
+            if !time_violation && insert_cost < min_insert_cost[1]
+                min_insert_cost = (insert_cost, i)
+            end
+            deleteat!(neighbor_route, i)
+        end
+
+        push!(min_insert_r, (min_insert_cost[1], min_insert_cost[2], route_id)) # Fitness, position, route_id
+    end
+    
+    # With two neighborhood routes, the regret value essentially becomes the regret value of the max - min.
+    # min_cost_neigh = minimum(first.(min_insert_r))
+    # regret_cost = 0
+    # for cost, route_id, position in min_insert_r
+    #     regret_cost += cost - min_cost_neigh
+    # end
+    if minimum(first.(min_insert_r)) == typemax(Int32) # This would mean that the patient has no insertion positions that do not violate the time constraint...
+        return -1, (), true
+    end
+    regret_cost = maximum(first.(min_insert_r)) - minimum(first.(min_insert_r))
+    return regret_cost, argmin(min_insert_r), false
+end
+
+
+
 function re_init(num_nurses, num_patients)
     patients = [i for i in 1:num_patients]
     shuffle!(patients)
@@ -54,12 +119,13 @@ function re_init(num_nurses, num_patients)
     # 3. Insert patient with highest regret cost. Repeat step 1.
     # All patients that currently have infeasible insertions will be collected. Then, an extended insertion regret cost function is applied. 
 
+    # I could keep track of the neighbor routes, last point at which regret cost was calculated, and latest changed routes to speed up calculations.
 
     while i < size(patients, 1)
         centroids = get_all_centroids(routes)
         closest_neighbors = get_route_neighborhood(centroids, patient_route_id, patient)
         # inserted = best_apply_neighbor_insert!(typemax(Int32), closest_neighbors, routes, patient_id)
-        inserted = minimum_insertion_regret(closest_neighbors, routes, patient_id)
+        # inserted = minimum_insertion_regret(closest_neighbors, routes, patient_id)
         
         if !inserted
             #

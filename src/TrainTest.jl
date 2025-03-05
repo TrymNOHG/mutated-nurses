@@ -35,7 +35,7 @@ function run()
         size(patients, 1),  # Genotype size
         350,                 # Population size
         2000,                 # Number of generations
-        1.0,                # Cross-over rate
+        0.9,                # Cross-over rate
         0.01,               # Mutate rate
         "./src/logs/kp/"    # History directory
     )
