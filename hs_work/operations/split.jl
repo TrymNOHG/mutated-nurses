@@ -6,6 +6,33 @@ import .Dequeue
 
 export split2routes, splitbellman
 
+
+function cost_of_route(p::Int, i::Int, gene::Gene, patients::Vector{Patient}, max_duration, penaltyDuration, penaltyCap::Float32, depot::Depot)
+    # Compute travel time, load, and service time for the route segment
+    if p == 0
+        travel_time = gene.d0_x[1] + gene.sum_dist[i] + gene.dx_0[i]
+        load = gene.sum_load[i]
+        service_sum = gene.sum_service[i]
+    else
+        travel_time = gene.d0_x[p+1] + (gene.sum_dist[i] - gene.sum_dist[p+1]) + gene.dx_0[i]
+        load = gene.sum_load[i] - gene.sum_load[p]
+        service_sum = gene.sum_service[i] - gene.sum_service[p]
+    end
+
+    # Total duration includes travel time and service time
+    duration = travel_time + service_sum
+
+    # Calculate violations
+    capacity_violation = max(0.0f0, load - depot.nurse_cap)
+    duration_violation = max(0.0f0, duration - max_duration)
+
+    # Total cost: travel time plus penalties
+    cost = travel_time + penaltyCap * capacity_violation + penaltyDuration * duration_violation
+    return cost
+end
+
+
+
 function split2routes(gene::Gene, depot::Depot, nbPatients::Int, penaltyCap::Float32)
     potential = fill(1.e30, depot.num_nurses, nbPatients)
     pred = fill(0, depot.num_nurses, nbPatients)
@@ -95,7 +122,7 @@ function split2routes(gene::Gene, depot::Depot, nbPatients::Int, penaltyCap::Flo
 end
 
 
-function splitbellman(gene::Gene, depot::Depot, patients::Vector{Patient}, nbPatients::Int, penaltyCap::Float32, max_duration::Float32, penaltyDuration::Float32)
+function splitbellman(gene::Gene, depot::Depot, patients::Vector{Patient}, nbPatients::Int, penaltyCap::Float32, max_duration, penaltyDuration)
     maxVehicles = depot.num_nurses
 
     # Initialize DP tables

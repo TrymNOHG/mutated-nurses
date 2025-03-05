@@ -13,7 +13,7 @@ using .FitnFeasible
 using DataFrames, BenchmarkTools, Statistics, Serialization
 init_mu = 10
 init_lambda = 3
-max_iter = 10
+max_iter = 1
 
 
 # Code to cache training files  
@@ -35,25 +35,27 @@ end
 
 for gen_iter in 1:max_iter
     penaltyCapacity::Float32 = penaltyCap4Split(tt_tuple, patients)
-
+    penaltyDuration = 1
     if gen_iter == 1
-        global genetic_pool = pop_init(init_mu, init_lambda, n_col-1, depot, patients,penaltyCapacity, time_matrix)
+        global genetic_pool = pop_init(init_mu, init_lambda, n_col-1, depot, patients,penaltyCapacity,penaltyDuration, time_matrix)
         curr_pop_size = length(genetic_pool.genes)
         for sample in 1:curr_pop_size
             curr_gene = genetic_pool.genes[sample]
-            is_feasible = check_feasible(curr_gene, patients, depot)
-            if is_feasible
+            is_feasible = check_feasible(curr_gene, patients, depot, time_matrix)
+            if is_feasible == 0
                 push!(genetic_pool.feas_genes, sample)
             else
-                push!(genetic_pool.infeas_genes, sample)
+                push!(genetic_pool.infeas_genes, [sample,is_feasible])
             end
         end
     end
-
-    for child_nb in 1:genetic_pool.lambda
-        parent_1, parent_2 = binary_tournament(genetic_pool)
-        child_gene_seq = o1cross(parent_1, parent_2)
+    
+    # for child_nb in 1:genetic_pool.lambda
+    #     parent_1, parent_2 = binary_tournament(genetic_pool)
+    #     child_gene_seq = o1cross(parent_1, parent_2)
         
-    end
+    # end
 
 end            
+println(genetic_pool.infeas_genes)
+println(genetic_pool.feas_genes)
