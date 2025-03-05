@@ -4,8 +4,6 @@ export perform_crossover, order_1_crossover!, PMX!, gen_edge_table, TBX!, edge_3
 
 import Random.shuffle!
 
-include("../models/Solution.jl")
-
 function perform_crossover(parents, num_patients, cross_rate)
     """
     This function performs one-point cross-over on a list of parents. To increase

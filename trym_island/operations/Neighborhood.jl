@@ -5,7 +5,9 @@ export get_centroid, get_all_centroids, get_route_neighborhood, first_apply_neig
 function get_centroid(route, patients)
     sum_x = 0
     sum_y = 0
+    println(patients)
     for patient in route
+        print(patients[patient])
         sum_x += patients[patient].x_coord
         sum_y += patients[patient].y_coord
     end
@@ -38,7 +40,7 @@ function get_route_neighborhood(centroids, patient_route_id, patient)
         distance = sqrt((centroid[1] - patient.x_coord)^2 + (centroid[2] - patient.y_coord)^2)
         if size(neighbors, 1) < 1
             push!(neighbors, [distance, centroid_id])
-        elseif size(neighbors) < 2
+        elseif size(neighbors, 1) < 2
             if distance < neighbors[1][1]
                 push!(neighbors, neighbors[1])
                 neighbors[1] = [distance, centroid_id]
@@ -64,10 +66,10 @@ function first_apply_neighbor_insert!(current_fitness, neighbors, routes, patien
         neighbor_route = routes[route_id]
         for i in size(neighbor_route, 1)
             insert!(neighbor_route, patient_id, i)
-            new_fitness = nurse_fitness(routes, ...) # I need to add the actual calculation of new fitness
-            if new_fitness < current_fitness
-                return true # Mutation was successful.
-            end
+            # new_fitness = nurse_fitness(routes, ...) # I need to add the actual calculation of new fitness
+            # if new_fitness < current_fitness
+            #     return true # Mutation was successful.
+            # end
             deleteat!(neighbor_route, i)
         end # Insert patient into every spot in the first closest neighbor. If an improvement occurs, immediately accept it.
     end
@@ -85,10 +87,10 @@ function best_apply_neighbor_insert!(current_fitness, neighbors, routes, patient
         neighbor_route = routes[route_id]
         for i in size(neighbor_route, 1)
             insert!(neighbor_route, patient_id, i)
-            new_fitness = nurse_fitness(routes, ...) # I need to add the actual calculation of new fitness
-            if new_fitness < best_insertion[1]
-                best_insertion = (new_fitness, route_id, i)
-            end
+            # new_fitness = nurse_fitness(routes, ...) # I need to add the actual calculation of new fitness
+            # if new_fitness < best_insertion[1]
+            #     best_insertion = (new_fitness, route_id, i)
+            # end
             deleteat!(neighbor_route, i) 
         end
     end

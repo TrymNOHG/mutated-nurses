@@ -4,9 +4,9 @@ import Random.Xoshiro
 import Random.randperm!
 import Random.shuffle!
 
-include("../models/Solution.jl")
+using ..Neighborhood
 
-export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible
+export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible, re_init
 
 # Feasible solutions for initial populations are first generated using a sequential insertion heuristic in which customers are inserted in 
 # random order at randomly chosen insertion positions within routes. This strategy is fast and simple while ensuring unbiased solution generation. 
@@ -16,7 +16,7 @@ function init_rand_pop(num_patients, num_nurses)
     gene_r = [[] for _ in 1:num_nurses]
     patients = [i for i in 1:num_patients]
     shuffle!(patients)
-    for i in patients:
+    for i in patients
         push!(gene_r[rand(1:num_nurses)], i)
     end
     return gene_r
@@ -62,14 +62,14 @@ function calculate_cost(route, patients, travel_time_table)
     return time, false
 end
 
-function regret_cost(patient_id, neighbors, routes, travel_time_table)
+function regret_cost(patient_id, neighbors, routes, travel_time_table, patients)
     min_insert_r  = []
     for centroid_info in neighbors
-        route_id = centroid_info[2]
+        route_id = Int(centroid_info[2])
         neighbor_route = routes[route_id]
         min_insert_cost = (typemax(Int32), 0) # Fitness, position
 
-        current_route_cost, time_violation = calculate_cost(route, patients, travel_time_table)
+        current_route_cost, time_violation = calculate_cost(neighbor_route, patients, travel_time_table)
         if time_violation
             throw(Error("Time violation should not occur here"))
         end
@@ -77,7 +77,7 @@ function regret_cost(patient_id, neighbors, routes, travel_time_table)
         for i in 1:size(neighbor_route, 1)+1 # Need to check insertion at end as well.
             # Need to re-evaluate the whole route because an insertion could ruin for the patients...
             insert!(neighbor_route, i, patient_id)
-            cost, time_violation = calculate_cost(route, patients, travel_time_table)
+            cost, time_violation = calculate_cost(neighbor_route, patients, travel_time_table)
             insert_cost = cost - current_route_cost
             if !time_violation && insert_cost < min_insert_cost[1]
                 min_insert_cost = (insert_cost, i)
@@ -97,49 +97,63 @@ function regret_cost(patient_id, neighbors, routes, travel_time_table)
     if minimum(first.(min_insert_r)) == typemax(Int32) # This would mean that the patient has no insertion positions that do not violate the time constraint...
         return -1, (), true
     end
-    regret_cost = maximum(first.(min_insert_r)) - minimum(first.(min_insert_r))
-    return regret_cost, argmin(min_insert_r), false
+    total_regret_cost = maximum(first.(min_insert_r)) - minimum(first.(min_insert_r))
+    return total_regret_cost, min_insert_r[argmin(min_insert_r)], false
 end
 
+function re_init(num_nurses, num_patients, travel_time_table, patients)
+    """
+    This function acts to create feasible (or near feasible) individuals. It helps increase the diversity and quality of the population, especially considering
+    the time window constraint. 
+    It essentially works like this:
+        1. Provide each nurse with one patient randomly.
+        2. Loop the following until not possible anymore:
+            - Calculate every patients regret cost based on the principle of minimum insertion into a 2-route neighborhood.
+            - Set aside the patients who no matter what, violate the time constraint.
+            - Find the patient with the highest regret cost and insert them into the minimum insertion cost position.
+        3. Deal with the stubborn violation patients by running an extended insertion regret cost thing.
+    
+    Potential improvements:
+        - There are a lot of places for improvements. There are some embarrasingly parallelizable snippets, as well as places where caching should definitely be leveraged.
+    """
+    patient_list = [i for i in 1:num_patients]
+    shuffle!(patient_list)
+    routes = [[pop!(patient_list)] for i in 1:num_nurses]
 
-
-function re_init(num_nurses, num_patients)
-    patients = [i for i in 1:num_patients]
-    shuffle!(patients)
-    routes = [[pop!(paitents)] for i in 1:num_nurses]
-
+    violation_patients = []
+    centroids = get_all_centroids(routes, patients)
     i = 0
-    # It seems that all of the remaining patients are ranked according to their regret cost.
-    # The patients with the highest regret costs are inserted first, since they will have fewer good options later.
-
-    # TODO:
-    # Create function to calculate the regret cost of a given customer.
-    # 1. Collect all feasible of these for all remaining patients.
-    # 2. Sort based on their regret costs.
-    # 3. Insert patient with highest regret cost. Repeat step 1.
-    # All patients that currently have infeasible insertions will be collected. Then, an extended insertion regret cost function is applied. 
-
-    # I could keep track of the neighbor routes, last point at which regret cost was calculated, and latest changed routes to speed up calculations.
-
-    while i < size(patients, 1)
-        centroids = get_all_centroids(routes)
-        closest_neighbors = get_route_neighborhood(centroids, patient_route_id, patient)
-        # inserted = best_apply_neighbor_insert!(typemax(Int32), closest_neighbors, routes, patient_id)
-        # inserted = minimum_insertion_regret(closest_neighbors, routes, patient_id)
-        
-        if !inserted
-            #
+    while i < size(patient_list, 1)
+        regret_costs = []
+        for (i, patient_id) in enumerate(patient_list)
+            closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id])
+            cost, insertion_pos, time_violation = regret_cost(patient_id, closest_neighbors, routes, travel_time_table, patients)
+            if time_violation
+                deleteat!(patient_list, i)
+                push!(violation_patients, patient_id)
+            else
+                push!(regret_costs, (cost, insertion_pos, patient_id))
+            end
         end
+        # The patients with the highest regret costs are inserted first, since they will have fewer good options later.
+
+        insertion_patient_info = regret_costs[argmax(regret_costs)]
+        position = insertion_patient_info[2][2]
+        route_id = insertion_patient_info[2][3]
+        patient_id = insertion_patient_info[3]
+        # Insert in locations that minimize cost and do not violate time-window constraint.
+        push!(routes[route_id], position, patient_id)
+        
+        # Once I have inserted, I can update the centroid for the route inserted into.
+        centroid[route_id] = (get_centroid(route, patients))
     end 
 
-    # Insert in locations that minimize cost and do not violate time-window constraint.
-    # Here, it might be smart to keep track of the time window and update it.
+    return routes
 
+    # Now to handle the infeasible patients...
+    # Need extended insertion regret cost function...
+    # Test the function and see if I get any violations at all from this construction...
 end
-
-# Go through the current route and collect all violations
-# at the same time build a list of the earliest?
-# Linearly try and insert the violations into the route in order to fulfill the time-window constraint.
 
 function is_feasible(individual, patients, depot, travel_time_table)
     # if length(Set(individual.values)) != size(patients, 1)
