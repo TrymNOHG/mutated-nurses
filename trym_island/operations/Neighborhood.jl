@@ -25,6 +25,24 @@ end
 
 # Centroids should be cached...
 
+function get_route_neighborhood(n_routes, centroids, patient_route_id, patient)
+    """
+    This function produces the n closest route neighbors given a certain patient. This is calculated using the distance between the centroids of routes 
+    (average over x and y for all nodes). The output follows the format: [[shortest_dist, route_id],[second_shortest, route_id_2]].
+    """
+    neighbors = [] # Shortest distance will be kept at end of list
+    for (centroid_id, centroid) in enumerate(centroids) 
+        if centroid_id == patient_route_id
+            continue
+        end
+        distance = sqrt((centroid[1] - patient.x_coord)^2 + (centroid[2] - patient.y_coord)^2)
+        push!(neighbors, (distance, centroid_id))
+    end
+    sort!(neighbors, by=x->x[1])
+    neighbors = neighbors[1:n_routes]
+    return neighbors
+end
+
 function get_route_neighborhood(centroids, patient_route_id, patient)
     """
     This function produces the 2 closest route neighbors given a certain patient. This is calculated using the distance between the centroids of routes 

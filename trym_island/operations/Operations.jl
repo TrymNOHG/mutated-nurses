@@ -5,15 +5,14 @@ module Operations
     include("Neighborhood.jl")
     using .Neighborhood
 
-    include("Population.jl")
-    using .Population
-
     include("ParentSelection.jl")
-    using .ParentSelection
+    include("Population.jl")
+
+    using .ParentSelection, .Population
+
 
     include("PermutationMutation.jl")
     using .PermutationMutation
-
 
     include("Recombination.jl")
     using .Recombination

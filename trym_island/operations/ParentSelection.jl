@@ -6,7 +6,7 @@ using DataStructures
 
 export tournament_select, nurse_fitness, simple_nurse_fitness
 
-using ..Population
+using ..Operations
 
 function select_parents!(population, num_parents, output_file, best_individual)
     fitness_scores, best_of_pop = sigma_select(population, output_file, 2)

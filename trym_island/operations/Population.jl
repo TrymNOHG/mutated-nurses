@@ -77,8 +77,6 @@ function calculate_cost(route, patients, travel_time_table)
             time += patients[patient_id].care_time
             from = to
         else
-            println(route)
-            println(time)
             return -1, true
         end
     end
@@ -152,6 +150,7 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
         i = 1
         while i <= size(patient_list, 1)
             patient_id = patient_list[i]
+            # closest_neighbors = get_route_neighborhood(2, centroids, 0, patients[patient_id]) # Allows more than just 2 route neighbors, which could be interesting to look at 
             closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id]) 
             cost, insertion_pos, time_violation = regret_cost(patient_id, closest_neighbors, routes, travel_time_table, patients)
             if time_violation
@@ -203,10 +202,7 @@ function is_feasible(individual, patients, depot, travel_time_table)
         time = 0
         demand = 0
         from = 1
-        # println()
         for (i, patient) in enumerate(route)
-            # println(patient)
-            # println(patients[patient])
             demand += patients[patient].care_time
             to = i + 1
             time += travel_time_table[from][to]
