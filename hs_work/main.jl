@@ -11,7 +11,7 @@ using .EAprogress
 include("utils/FitnFeasible.jl")
 using .FitnFeasible
 using DataFrames, BenchmarkTools, Statistics, Serialization
-init_mu = 10
+init_mu = 100
 init_lambda = 3
 max_iter = 1
 
@@ -36,8 +36,9 @@ end
 for gen_iter in 1:max_iter
     penaltyCapacity::Float32 = penaltyCap4Split(tt_tuple, patients)
     penaltyDuration = 1
+    penaltyTW = 1
     if gen_iter == 1
-        global genetic_pool = pop_init(init_mu, init_lambda, n_col-1, depot, patients,penaltyCapacity,penaltyDuration, time_matrix)
+        global genetic_pool = pop_init(init_mu, init_lambda, n_col-1, depot, patients,penaltyCapacity,penaltyDuration,penaltyTW, time_matrix)
         curr_pop_size = length(genetic_pool.genes)
         for sample in 1:curr_pop_size
             curr_gene = genetic_pool.genes[sample]

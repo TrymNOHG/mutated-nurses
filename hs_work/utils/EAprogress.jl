@@ -22,7 +22,7 @@ end
     return [shuffle(1:gene_size) for _ in 1:number_genes]
 end
 
-function pop_init(init_mu::Int, init_lambda::Int, seq_len::Int, depot::Depot, patients::Vector{Patient}, penaltyCapacity::Float32, penaltyDuration, time_matrix)
+function pop_init(init_mu::Int, init_lambda::Int, seq_len::Int, depot::Depot, patients::Vector{Patient}, penaltyCapacity::Float32, penaltyDuration, penaltyTW, time_matrix)
     genetic_pool = Population(
     seq_len,  # gene_length = number of patients
     [Gene(
@@ -63,7 +63,7 @@ function pop_init(init_mu::Int, init_lambda::Int, seq_len::Int, depot::Depot, pa
     for (iter,curr_gene) in enumerate(genetic_pool.genes)
         fitnes_rec = 0
         # fitnes_rec = split2routes(curr_gene, depot, genetic_pool.gene_length, penaltyCapacity)
-        fitnes_rec = splitbellman(curr_gene, depot, patients, genetic_pool.gene_length, penaltyCapacity, depot.return_time, penaltyDuration, time_matrix)
+        fitnes_rec = splitbellman(curr_gene, depot, patients, genetic_pool.gene_length, penaltyCapacity, depot.return_time, penaltyDuration, penaltyTW, time_matrix)
         genetic_pool.fitness_array[iter] = fitnes_rec
         # break
     end
