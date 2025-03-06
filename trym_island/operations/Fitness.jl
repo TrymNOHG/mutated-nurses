@@ -68,7 +68,7 @@ function distance(gene_r, travel_time_table)
     for (i, route) in enumerate(gene_r)
         from = 1 # Depot if depot is 1
         for (_, patient_id) in enumerate(route)
-        to = patient_id + 1 # Plus 1 to account for the depot 
+            to = patient_id + 1 # Plus 1 to account for the depot 
             total_time += travel_time_table(from,to)
             from = to
         end

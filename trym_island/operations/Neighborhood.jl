@@ -27,9 +27,10 @@ function get_all_centroids(routes, patients)
     return centroids
 end
 
-
+# The route neighborhood could also be found relative to the distances given by the time matrix.
+# The average distance between all of the patients in a route and the patient in question could be used as a metric!
+# Ok, so two ideas: 1. closes patients' routes. 2. average distance to each patient + depot (only once)
 # Centroids should be cached...
-
 function get_route_neighborhood(n_routes, centroids, patient_route_id, patient)
     """
     This function produces the n closest route neighbors given a certain patient. This is calculated using the distance between the centroids of routes 

@@ -22,17 +22,17 @@ end
 
 
 function run()
-    NUM_GEN = 100
+    NUM_GEN = 1000
     pop_size = 100
     growth_size = 10
 
     # Init pop
-    populations = init_populations(patients, size(patients, 1), depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap)
+    populations = @time init_populations(patients, size(patients, 1), depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap, depot.return_time)
 
     current_gen = 0 
     # Evolutionary loop
     while current_gen < NUM_GEN
-        for (i, pop) in enumerate(populations) 
+        for (i, pop) in enumerate(populations)  # Embarrasingly Parallelizable Here. So, try and do something with that...
             for i in 1:growth_size
                 # Parent Selection:
                 # Try first with roulette and then stochastic universal sampling
@@ -59,5 +59,7 @@ function run()
 end
 
 run()
+# println(solomon_seq_heur(size(patients, 1), depot.num_nurses, time_matrix, patients, depot.nurse_cap, depot.return_time))
+
 
 end
