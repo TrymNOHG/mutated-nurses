@@ -81,8 +81,8 @@ end
 
 # println(init_seq_heur_pop(size(patients, 1), depot.num_nurses, time_matrix, patients))
 
-pop_size = 10000
-growth_size = 100
+pop_size = 100
+growth_size = 10
 populations = init_populations(patients, size(patients, 1), depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap)
 
 end
