@@ -2,6 +2,8 @@ module Neighborhood
 
 export get_centroid, get_all_centroids, get_route_neighborhood, first_apply_neighbor_insert!, best_apply_neighbor_insert!
 
+using ..Operations
+
 function get_centroid(route, patients)
     sum_x = 0
     sum_y = 0
@@ -17,6 +19,9 @@ end
 function get_all_centroids(routes, patients)
     centroids = []
     for route in routes
+        if size(route, 1) == 0
+            continue
+        end
         push!(centroids, (get_centroid(route, patients)))
     end
     return centroids
@@ -77,30 +82,32 @@ end
 
 
 # All I need for this method is change in time of the route the patient was removed from
-function first_apply_neighbor_insert!(removal_reward, neighbors, routes, patient_id)
+function first_apply_neighbor_insert!(removal_reward, neighbors, routes, patient_id, patients, travel_time_table)
     """
         The removal reward parameter essentially provides the decrease in time the nurse initially assigned to the patient spend now that 
         the patient is no longer part of the route. 
         If the reduced time for removal + cost of insertion < 0 (and insertion is feasible), then do this.
     """
-    current_cost_of_route = calculate_cost(route, patients, travel_time_table)
     for centroid_info in neighbors
-        route_id = centroid_info[2]
+        route_id = Int(centroid_info[2])
         neighbor_route = routes[route_id]
-        for i in size(neighbor_route, 1)
-            insert!(neighbor_route, patient_id, i)
-            new_cost_of_route, feasible = calculate_cost(route, patients, travel_time_table)
+        current_cost_of_route, _ = calculate_cost(neighbor_route, patients, travel_time_table)
+        # println(neighbor_route)
+        for i in 1:size(neighbor_route, 1)
+            # println(neighbor_route)
+            insert!(neighbor_route, i, patient_id)
+            new_cost_of_route, feasible = calculate_cost(neighbor_route, patients, travel_time_table)
             insert_cost = new_cost_of_route - current_cost_of_route
-            if removal_reward _ insert_cost < 0
-                return true # Mutation was a success.
+            if removal_reward - insert_cost < 0
+                return routes, true # Mutation was a success.
             end
             deleteat!(neighbor_route, i)
         end # Insert patient into every spot in the first closest neighbor. If an improvement occurs, immediately accept it.
     end
-    return false
+    return routes, false
 end
 
-function best_apply_neighbor_insert!(current_fitness, neighbors, routes, patient_id)
+function best_apply_neighbor_insert!(current_fitness, neighbors, routes, patient_id, patients, travel_time_table)
     """
     This function attempts to insert a patient in every position in its two neighbors. Here, a "best-apply" approach is taken, where all positions will be evaluated against each
     other and the best will be chosen. The output value of function indicates whether a better position was found.

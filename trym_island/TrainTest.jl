@@ -75,8 +75,14 @@ function run()
 end
 
 # run()
-routes = re_init(depot.num_nurses, size(patients, 1), time_matrix, patients)
-println(routes)
-println(size(collect(Iterators.flatten(routes)), 1))
+# routes = re_init(depot.num_nurses, size(patients, 1), time_matrix, patients)
+# println(routes)
+# println(size(collect(Iterators.flatten(routes)), 1))
+
+# println(init_seq_heur_pop(size(patients, 1), depot.num_nurses, time_matrix, patients))
+
+pop_size = 10000
+growth_size = 100
+populations = init_populations(patients, size(patients, 1), depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap)
 
 end

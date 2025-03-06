@@ -4,7 +4,7 @@ using CSV
 using DataFrames
 using DataStructures
 
-export tournament_select, nurse_fitness, simple_nurse_fitness
+export tournament_select, nurse_fitness, simple_nurse_fitness, evaluate
 
 using ..Operations
 
@@ -229,11 +229,11 @@ function distance(gene_r, travel_time_table)
         from = 1 # Depot if depot is 1
         for (_, patient_id) in enumerate(route)
         to = patient_id + 1 # Plus 1 to account for the depot 
-            total_time += travel_time_table[from][to]
+            total_time += travel_time_table(from,to)
             from = to
         end
         to = 1 # Return to depot
-        total_time += travel_time_table[from][to]
+        total_time += travel_time_table(from,to)
     end
 
     # If we use the total_time, then this is a minimization optimization problem. Keep this in mind.
@@ -242,23 +242,23 @@ end
 
 # r_m = total_demand / total_capacity (How capacity constraint is included)
 # gamma is a user-defined parameter
-function eval(individual, patients, travel_time_table, num_patients, r_m, gamma, time_pen, num_time_pen) 
+function evaluate(gene_r, patients, travel_time_table, num_patients, r_m, gamma, time_pen, num_time_pen) 
 
-    E_i = size(individual, 1) - r_m + distance(individual.gene_r, travel_time_table) * gamma
+    E_i = size(gene_r, 1) - r_m + distance(gene_r, travel_time_table) * gamma
     CV = 0
     time_violations = 0
-    for route in individual.gene_r
+    for route in gene_r
         time = 0
         from = 1 # Depot if depot is 1
         for patient_id in route
             to = patient_id + 1 # Plus 1 to account for the depot 
-            time += travel_time_table[from][to]
-            late = max(0, time - (patients[patiend_id].end_time-patients[patiend_id].care_time)) 
+            time += travel_time_table(from,to)
+            late = max(0, time - (patients[patient_id].end_time-patients[patient_id].care_time)) 
             CV += time_pen * late
             if late > 0
                 time_violations += 1
             end
-            time += patients[patiend_id].care_time
+            time += patients[patient_id].care_time
             from = to
         end
     end

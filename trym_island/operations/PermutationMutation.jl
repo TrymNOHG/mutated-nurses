@@ -6,7 +6,7 @@ import Random.randperm!
 import Random.shuffle!
 import Random.Xoshiro
 
-using ..Neighborhood
+using ..Operations
 
 export pop_swap_mut!, pop_insert_mut!, pop_scramble_mut!, pop_scramble_seg_mut!, route_mutation!, inversion_mut!, EE_M, EE_M!
 
@@ -106,7 +106,7 @@ function route_mutation!(indices::Vector{Int64}, num_patients::Int64, mutate_rat
     end
 end
 
-function EE_M!(individual, patients) # ::Gene
+function EE_M!(individual, patients, travel_time_table) # ::Gene
     
     centroids = []
     for route in individual.gene_r
@@ -121,7 +121,7 @@ function EE_M!(individual, patients) # ::Gene
             deleteat!(route, i) 
             new_cost = calculate_cost(route, patients, travel_time_table)
             removal_reward = new_cost - old_cost
-            is_better_solution = first_apply_neighbor_insert!(removal_reward, neighbors, routes, patient_id)
+            is_better_solution = first_apply_neighbor_insert!(removal_reward, neighbors, routes, patient_id, patients, travel_time_table)
             if is_better_solution == false
                 insert!(route, patient_id, i) # No better position...
             end
@@ -133,27 +133,32 @@ end
 # Integrate the individual data type into this
 # Make this EE_M return the solution instead of directly changing it.
 
-function EE_M(individual, patients) # ::Gene
+function EE_M(gene_r, patients, travel_time_table) # ::Gene
     
     centroids = []
-    for route in individual.gene_r
+    for route in gene_r
         push!(centroids, (get_centroid(route, patients)))
     end
 
-    for (route_index, route) in enumerate(individual.gene_r)
+    # println(gene_r)
+    for (route_index, route) in enumerate(gene_r)
         for (i, patient_id) in enumerate(route)
+            # println(route)
             neighbors = get_route_neighborhood(centroids, route_index, patients[patient_id])
-            old_cost = calculate_cost(route, patients, travel_time_table)
+            # neighbors = get_route_neighborhood(10, centroids, route_index, patients[patient_id])
+            old_cost, _ = calculate_cost(route, patients, travel_time_table)
             deleteat!(route, i) 
-            new_cost = calculate_cost(route, patients, travel_time_table)
+            new_cost, _ = calculate_cost(route, patients, travel_time_table)
             removal_reward = new_cost - old_cost
-            is_better_solution = first_apply_neighbor_insert!(removal_reward, neighbors, routes, patient_id)
+            new_route, is_better_solution = first_apply_neighbor_insert!(removal_reward, neighbors, gene_r[1:end], patient_id, patients, travel_time_table)
             if is_better_solution == false
-                insert!(route, patient_id, i) # No better position...
+                insert!(route, i, patient_id) # No better position...
+            else
+                return new_route
             end
         end
     end
-    return individual
+    return gene_r
 end
 
 # sequence::Vector{Int}       # Sequence of the gene, represents an individual from population

@@ -4,10 +4,12 @@ import Random.Xoshiro
 import Random.randperm!
 import Random.shuffle!
 
-using ..Neighborhood
-using ..ParentSelection
+using ..Operations
+# using ..Neighborhood
+# using ..ParentSelection
+# using ..PermutationMutation
 
-export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible, re_init
+export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible, re_init, init_populations, calculate_cost, init_seq_heur_pop
 
 # Feasible solutions for initial populations are first generated using a sequential insertion heuristic in which customers are inserted in 
 # random order at randomly chosen insertion positions within routes. This strategy is fast and simple while ensuring unbiased solution generation. 
@@ -23,25 +25,67 @@ function init_rand_pop(num_patients, num_nurses)
     return gene_r
 end
 
-function init_populations(patients, num_patients, num_nurses, mu, n_p)
-    populations = [init_rand_pop(num_patients, num_nurses) for _ in 1:2]
+function init_seq_heur_pop(num_patients, num_nurses, travel_time_table, patients)
+    patient_list = [i for i in 1:num_patients]
+    shuffle!(patient_list)
+    routes = [[pop!(patient_list)] for i in 1:num_nurses]
+
+    # Sequential heuristic approach now.
+    # Improvement: Could select next patient based on heuristics, currently random.
+    violation_patients = []
+    centroids = get_all_centroids(routes, patients)
+    for patient_id in patient_list
+        closest_neighbors = get_route_neighborhood(num_nurses, centroids, 0, patients[patient_id]) 
+        cost, insertion_pos, time_violation = regret_cost(patient_id, closest_neighbors, routes, travel_time_table, patients) # Overhead, change later...
+        if time_violation
+            deleteat!(patient_list, i)
+            push!(violation_patients, patient_id)
+            continue
+        end
+        position = insertion_pos[2]
+        route_id = insertion_pos[3]
+        insert!(routes[route_id], position, patient_id)
+        # deleteat!(patient_list, i)
+        
+        # Once I have inserted, I can update the centroid for the route inserted into.
+        centroids[route_id] = (get_centroid(routes[route_id], patients))
+    end
+
+    for patient_id in violation_patients
+        push!(routes[rand(1:num_nurses)], patient_id)
+    end
+
+    return routes
+end
+
+function init_populations(patients, num_patients, num_nurses, mu, n_p, travel_time_table, capacity)
+    populations = [[init_seq_heur_pop(num_patients, num_nurses, travel_time_table, patients) for _ in 1:mu] for _ in 1:2]
     for pop in populations
         for _ in 1:n_p
             # Apparently the next steps:
             # Generate a new solution Sj using the EE_M mutator (defined in Section 2.3.2)
             # Add Sj in Pop_x
-            solution = EE_M(pop[rand(1:size(pop, 1))], patients)
+            solution = EE_M(pop[rand(1:size(pop, 1))], patients, travel_time_table)
+            # println("EE_M solution:")
+            # println(solution)
+            # println("Population")
+            # println(pop)
             push!(pop, solution)
         end
         # Higher eval indicates worse individual
-        # r_m - constant
+        total_demand = 0
+        for patient in patients
+            total_demand += patient.demand
+        end
+        total_capacity = num_nurses * capacity
+        r_m = total_demand / total_capacity
         gamma = 1
         time_pen = 1
         num_time_pen = 1
         scores = []
         
         for (i, individual) in enumerate(pop)
-            value = eval(individual, patients, travel_time_table, num_patients, r_m, gamma, time_pen, num_time_pen) 
+            value = evaluate(individual, patients, travel_time_table, num_patients, r_m, gamma, time_pen, num_time_pen) 
             push!(scores, (value, i))
         end
 
@@ -53,22 +97,68 @@ function init_populations(patients, num_patients, num_nurses, mu, n_p)
             deleteat!(pop, instance[2])
         end            
     end
-    # Additional steps:
-    best_individual, r_min, i = r_min(populations[1])
-    best_individual_2, r_min_2, j = r_min(populations[2])
+    # println(populations[1][5])
+    println("Over the first part!")
+    # I am looking for the minimum number of nurses needed for a feasible/viable solution. Assumption here is that fewer nurses generally means shorter travel time.
+    best_individual, r_min_1 = r_min(populations[1], patients, travel_time_table)
+    best_individual_2, r_min_2 = r_min(populations[2], patients, travel_time_table)
 
-    populations[1][1] = r_min_2 < r_min ? best_individual_2 : best_individual
-
+    populations[1][1] = r_min_2 < r_min_1 ? best_individual_2 : best_individual
+    r_min_1 = min(r_min_1, r_min_2)
+    println("Min found to be:")
+    println(r_min_1)
     # Here, I re-initialize the pop_1 with r_min nurses in an effort to construct fewer routes (generally more optimal). All but the best solution is re-initialized.
     for i in 2:size(populations[1], 1)
-        populations[1][i] = re_init(r_min, num_patients, travel_time_table, patients)
+        populations[1][i] = re_init(r_min_1, num_patients, travel_time_table, patients)
     end
 
     # I do the same thing here for pop_2 but with less routes. All individuals will be replaced in this population.
     for i in 1:size(populations[2], 1)
-        populations[2][i] = re_init(r_min-1, num_patients, travel_time_table, patients)
+        populations[2][i] = re_init(r_min_1-1, num_patients, travel_time_table, patients)
     end
 
+    best_individual = (typemax(Int32), -1)
+    for individual in populations[1]
+        total_time = 0
+        time_violation = false
+        for route in individual
+            cost, time_violation = calculate_cost(route, patients, travel_time_table)
+            total_time += cost
+            if time_violation
+                break
+            end
+        end
+        if !time_violation
+            if total_time < best_individual[1]
+                best_individual = (total_time, individual)
+            end
+        end
+    end
+
+    println(best_individual)
+
+    best_individual = (typemax(Int32), -1)
+    for individual in populations[2]
+        total_time = 0
+        time_violation = false
+        for route in individual
+            cost, time_violation = calculate_cost(route, patients, travel_time_table)
+            total_time += cost
+            if time_violation
+                break
+            end
+        end
+        if !time_violation
+            if total_time < best_individual[1]
+                best_individual = (total_time, individual)
+            end
+        end
+    end
+
+    println(best_individual)
+
+    
+    return populations
 end
 
 function calculate_cost(route, patients, travel_time_table)
@@ -92,6 +182,7 @@ function calculate_cost(route, patients, travel_time_table)
             time += patients[patient_id].care_time
             from = to
         else
+            # Time violation
             return -1, true
         end
     end
@@ -201,16 +292,44 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
     # Test the function and see if I get any violations at all from this construction...
 end
 
-function r_min(pop)
+function r_min(pop, patients, travel_time_table)
     # Find the minimum number of routes from all the feasible solutions in the population.
     # Check if a route is empty, then this indicates a route is not needed.
+    feasible_individuals = [] # Will contain (r_min_val, objective_function_val)
+    # println("Population")
+    # println(pop)
+    # println(pop[1])
     for (i, individual) in enumerate(pop)
+        total_time = 0
+        feasible_solution = true
+        r_min_individual = 0
+        for route in individual
+            if size(route, 1) == 0
+                continue
+            end
+            time, time_violation = calculate_cost(route, patients, travel_time_table)
+            total_time += time
+            r_min_individual += 1
+            if time_violation
+                feasible_solution = false
+                break
+            end
+        end
+        if feasible_solution
+            push!(feasible_individuals, (r_min_individual, total_time, i))
+        end
+
         # Check if it is feasible.
-        # Check its objective function (specific to the population)
+        # Check its objective function (specific to the population)?
         # Check its number of routes (making sure to not include empty routes in the number)
     end
-    # Sort all individuals by their number of routes, then perform a second ordering based on their fitness. Choose the individual with the smallest r_min but best fitness (lowest time).
 
+    # Sort all individuals by their number of routes, then perform a second ordering based on their fitness. Choose the individual with the smallest r_min but best fitness (lowest time).
+    sort!(feasible_individuals, by=x->(x[1], x[2]))
+    # println(feasible_individuals)
+    r_min_val = feasible_individuals[1][1]
+    best_individual = feasible_individuals[1][3]
+    return pop[best_individual], r_min_val
 end
 
 function is_feasible(individual, patients, depot, travel_time_table)
