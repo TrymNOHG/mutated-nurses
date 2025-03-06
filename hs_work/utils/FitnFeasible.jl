@@ -5,43 +5,7 @@ using ..Models
 
 export generic_fitness, check_feasible
 
-function generic_fitness(gene::Vector{Integer}, time_matrix::Vector{Vector{Integer}}, patient_demands::Vector{Integer}, nurse_cap::Integer, nurse_n::Integer)
-    # Would calculate fitness of gene based on the travel time.
-    routes = split2routes(gene, time_matrix, patient_demands, nurse_cap, nurse_no)
-    total_time = 0
-    for route in routes
-        route_len = length(route)
-        for i in 1:route_len
-            patient_id = route[i]
-            prev_patiend_id = 1
-            if i == 1
-                total_time += time_matrix[1,patient_id]
-            
-            elseif i == route_len
-                total_time += time_matrix[patient_id,1]
-            
-            else
-                total_time += time_matrix[prev_patiend_id+1,patient_id+1]
 
-            end
-            prev_patiend_id = patient_id
-        end
-    end
-    return -total_time
-end
-
-# function check_feasible(curr_gene::Gene, patients::Vector{Patient}, depot::Depot)
-#     for route in curr_gene.gene_r
-#         route_dem = 0
-#         for client_id in route
-#             route_dem += patients[client_id].demand
-#         end
-#         if route_dem > depot.nurse_cap
-#             return false
-#         end
-#     end
-#     return true
-# end
 
 function constrain_cal(curr_gene::Gene, depot::Depot, patients::Vector{Patient}, time_matrix)
     total_tw = 0
@@ -105,45 +69,5 @@ function check_feasible(curr_gene::Gene, patients::Vector{Patient}, depot::Depot
 end
 
 
-
-# function check_feasible(curr_gene::Gene, patients::Vector{Patient}, depot::Depot, time_matrix)
-#     for route in curr_gene.gene_r
-#         if isempty(route)
-#             continue  # Skip empty routes, though typically not expected
-#         end
-        
-#         # Initialize accumulators
-#         route_dem = 0.0f0      # Total demand for capacity check
-#         route_duration = 0.0f0  # Total duration for duration check
-        
-#         # Travel from depot to first patient
-#         first_pat = route[1]
-#         route_duration += time_matrix(1, first_pat)
-        
-#         # Process each patient in the route
-#         for i in 1:length(route)
-#             pat_id = route[i]
-#             # Add patient's demand and service time
-#             route_dem += patients[pat_id].demand
-#             route_duration += patients[pat_id].care_time
-            
-#             # Add travel time to next patient if not the last one
-#             if i < length(route)
-#                 next_pat = route[i + 1]
-#                 route_duration += time_matrix(pat_id, next_pat)
-#             end
-#         end
-        
-#         # Travel back to depot from last patient
-#         last_pat = route[end]
-#         route_duration += time_matrix(last_pat, 1)
-        
-#         # Check both constraints
-#         if route_dem > depot.nurse_cap || route_duration > depot.return_time
-#             return false
-#         end
-#     end
-#     return true
-# end
 
 end
