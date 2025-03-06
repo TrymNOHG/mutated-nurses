@@ -11,7 +11,7 @@ using .NurseReader
 
 using CSV
 
-# extract_nurse_data("./train/train_9.json", "./trym_island/bin_train/serialized_train_9.bin")
+# extract_nurse_data("./train/train_0.json", "./trym_island/bin_train/serialized_train_0.bin")
 depot, patients, tt_tuple, n_col= load_data("./trym_island/bin_train/serialized_train_9.bin")
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
@@ -75,6 +75,8 @@ function run()
 end
 
 # run()
-println(re_init(depot.num_nurses, size(patients, 1), time_matrix, patients))
+routes = re_init(depot.num_nurses, size(patients, 1), time_matrix, patients)
+println(routes)
+println(size(collect(Iterators.flatten(routes)), 1))
 
 end

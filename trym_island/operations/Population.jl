@@ -54,9 +54,20 @@ function init_populations(patients, num_patients, num_nurses, mu, n_p)
         end            
     end
     # Additional steps:
-    # Determine Rmin, the minimum number of tours associated with a feasible solution in Pop1 or Pop2. Replicate (if needed) best feasible solution (Rmin routes) in Pop1.
-    # Replace Pop1 individuals with Rmin-route solutions using the procedure RI(Rmin).
-    # Replace Pop2 members with Rmin-1 -route solutions using the procedure RI(Rmin-1).
+    best_individual, r_min, i = r_min(populations[1])
+    best_individual_2, r_min_2, j = r_min(populations[2])
+
+    populations[1][1] = r_min_2 < r_min ? best_individual_2 : best_individual
+
+    # Here, I re-initialize the pop_1 with r_min nurses in an effort to construct fewer routes (generally more optimal). All but the best solution is re-initialized.
+    for i in 2:size(populations[1], 1)
+        populations[1][i] = re_init(r_min, num_patients, travel_time_table, patients)
+    end
+
+    # I do the same thing here for pop_2 but with less routes. All individuals will be replaced in this population.
+    for i in 1:size(populations[2], 1)
+        populations[2][i] = re_init(r_min-1, num_patients, travel_time_table, patients)
+    end
 
 end
 
@@ -65,6 +76,10 @@ function calculate_cost(route, patients, travel_time_table)
     This function calculates the cost of a given route. If the route contains time window violation, then that is also notified.
     Output is therefore: cost, violates
     """
+    if size(route, 1) == 0
+        return 0, false
+    end
+
     from = 1
     time = 0
     for patient_id in route
@@ -150,13 +165,14 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
         i = 1
         while i <= size(patient_list, 1)
             patient_id = patient_list[i]
-            # closest_neighbors = get_route_neighborhood(2, centroids, 0, patients[patient_id]) # Allows more than just 2 route neighbors, which could be interesting to look at 
+            # closest_neighbors = get_route_neighborhood(5, centroids, 0, patients[patient_id]) # Allows more than just 2 route neighbors, which could be interesting to look at 
             closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id]) 
             cost, insertion_pos, time_violation = regret_cost(patient_id, closest_neighbors, routes, travel_time_table, patients)
             if time_violation
                 deleteat!(patient_list, i)
                 push!(violation_patients, patient_id)
-                i -= 2
+                # i -= i == 1 ? 1 : 2
+                i -= 1
             else
                 push!(regret_costs, (cost, insertion_pos, patient_id, i))
             end
@@ -183,6 +199,18 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
     # Now to handle the infeasible patients...
     # Need extended insertion regret cost function...
     # Test the function and see if I get any violations at all from this construction...
+end
+
+function r_min(pop)
+    # Find the minimum number of routes from all the feasible solutions in the population.
+    # Check if a route is empty, then this indicates a route is not needed.
+    for (i, individual) in enumerate(pop)
+        # Check if it is feasible.
+        # Check its objective function (specific to the population)
+        # Check its number of routes (making sure to not include empty routes in the number)
+    end
+    # Sort all individuals by their number of routes, then perform a second ordering based on their fitness. Choose the individual with the smallest r_min but best fitness (lowest time).
+
 end
 
 function is_feasible(individual, patients, depot, travel_time_table)

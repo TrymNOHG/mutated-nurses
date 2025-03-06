@@ -117,16 +117,17 @@ function EE_M!(individual, patients) # ::Gene
         for (i, patient_id) in enumerate(route)
             # Finds 2 closest tours based on minimum distance to centroids
             neighbors = get_route_neighborhood(centroids, route_index, patients[patient_id])
-            deleteat!(route, i) # Remove patient from its current route
-            is_better_solution = first_apply_neighbor_insert!(individual.fitness, neighbors, routes, patient_id)
+            old_cost = calculate_cost(route, patients, travel_time_table)
+            deleteat!(route, i) 
+            new_cost = calculate_cost(route, patients, travel_time_table)
+            removal_reward = new_cost - old_cost
+            is_better_solution = first_apply_neighbor_insert!(removal_reward, neighbors, routes, patient_id)
             if is_better_solution == false
                 insert!(route, patient_id, i) # No better position...
             end
-
         end
     end
 end
-
 
 # TODO:
 # Integrate the individual data type into this
@@ -141,14 +142,15 @@ function EE_M(individual, patients) # ::Gene
 
     for (route_index, route) in enumerate(individual.gene_r)
         for (i, patient_id) in enumerate(route)
-            # Finds 2 closest tours based on minimum distance to centroids
             neighbors = get_route_neighborhood(centroids, route_index, patients[patient_id])
-            deleteat!(route, i) # Remove patient from its current route
-            is_better_solution = first_apply_neighbor_insert!(individual.fitness, neighbors, routes, patient_id)
+            old_cost = calculate_cost(route, patients, travel_time_table)
+            deleteat!(route, i) 
+            new_cost = calculate_cost(route, patients, travel_time_table)
+            removal_reward = new_cost - old_cost
+            is_better_solution = first_apply_neighbor_insert!(removal_reward, neighbors, routes, patient_id)
             if is_better_solution == false
                 insert!(route, patient_id, i) # No better position...
             end
-
         end
     end
     return individual

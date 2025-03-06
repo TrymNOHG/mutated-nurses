@@ -76,16 +76,24 @@ function get_route_neighborhood(centroids, patient_route_id, patient)
 end
 
 
-function first_apply_neighbor_insert!(current_fitness, neighbors, routes, patient_id)
+# All I need for this method is change in time of the route the patient was removed from
+function first_apply_neighbor_insert!(removal_reward, neighbors, routes, patient_id)
+    """
+        The removal reward parameter essentially provides the decrease in time the nurse initially assigned to the patient spend now that 
+        the patient is no longer part of the route. 
+        If the reduced time for removal + cost of insertion < 0 (and insertion is feasible), then do this.
+    """
+    current_cost_of_route = calculate_cost(route, patients, travel_time_table)
     for centroid_info in neighbors
         route_id = centroid_info[2]
         neighbor_route = routes[route_id]
         for i in size(neighbor_route, 1)
             insert!(neighbor_route, patient_id, i)
-            # new_fitness = nurse_fitness(routes, ...) # I need to add the actual calculation of new fitness
-            # if new_fitness < current_fitness
-            #     return true # Mutation was successful.
-            # end
+            new_cost_of_route, feasible = calculate_cost(route, patients, travel_time_table)
+            insert_cost = new_cost_of_route - current_cost_of_route
+            if removal_reward _ insert_cost < 0
+                return true # Mutation was a success.
+            end
             deleteat!(neighbor_route, i)
         end # Insert patient into every spot in the first closest neighbor. If an improvement occurs, immediately accept it.
     end
