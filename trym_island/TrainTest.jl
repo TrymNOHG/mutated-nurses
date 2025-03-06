@@ -22,67 +22,42 @@ end
 
 
 function run()
-    config = Config(
-        size(patients, 1),  # Genotype size
-        100,                 # Population size
-        1000,                 # Number of generations
-        0.9,                # Cross-over rate
-        0.01,               # Mutate rate
-        "./src/logs/kp/"    # History directory
-    )
-        
-    population = init_permutation_specific(depot.num_nurses, config.genotype_size, config.pop_size)    # Initialize population.
-    for individual in population
-        repair!(individual, patients, travel_time_table)
-    end
+    NUM_GEN = 100
+    pop_size = 100
+    growth_size = 10
 
-    current_gen = 0
-    while current_gen < config.num_gen
-        # Select Parents
-        println(current_gen + 1)
-        println("Parent Selection")
-        parents = tournament_select(
-            population,             # Population 
-            size(population, 1),                     # Number of parents selected (lambda)
-            2,                     # k - Number of participants in the tournament
-            travel_time_table,       # The time it takes to travel between patients
-            patients,               # Patient information
-            depot                   # Depot info
-        )
-        
-        println("Recombination")
-        survivors = perform_crossover(parents, config.genotype_size, config.cross_rate)
+    # Init pop
+    populations = init_populations(patients, size(patients, 1), depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap)
 
-        # Recombination
-        # Mutate
-        println("Mutation")
-        for solution in survivors
-            # pop_insert_mut!(solution.values, config.mutate_rate)
-            inversion_mut!(solution.values, config.mutate_rate)
-            # pop_scramble_seg_mut!(solution.values, config.mutate_rate)
-            if rand() < 0.001
-                route_mutation!(solution.indices,  config.genotype_size, config.mutate_rate)
+    current_gen = 0 
+    # Evolutionary loop
+    while current_gen < NUM_GEN
+        for (i, pop) in enumerate(populations) 
+            for i in 1:growth_size
+                # Parent Selection:
+                # Try first with roulette and then stochastic universal sampling
+                if i == 1
+                    # Handle island 1
+                else
+                    # Handle island 2
+                end
+                # Recombination and mutation based on which pop it is...
+            
             end
+            # Survivor selection:
+            # Remove the n_p worst from the pop using eval.
         end
+        
+        # Check if pop_2 contains new best feasible solution
+        # If so, migration will occur with some extra mutation shenanigans
 
-        # Survivor Selection
-        population = survivors
+        # Re-order the best solution to try and make it better.
 
         current_gen += 1
     end
-
-
+    
 end
 
-# run()
-# routes = re_init(depot.num_nurses, size(patients, 1), time_matrix, patients)
-# println(routes)
-# println(size(collect(Iterators.flatten(routes)), 1))
-
-# println(init_seq_heur_pop(size(patients, 1), depot.num_nurses, time_matrix, patients))
-
-pop_size = 100
-growth_size = 10
-populations = init_populations(patients, size(patients, 1), depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap)
+run()
 
 end
