@@ -6,7 +6,9 @@ import Random.randperm!
 import Random.shuffle!
 import Random.Xoshiro
 
-export pop_swap_mut!, pop_insert_mut!, pop_scramble_mut!, pop_scramble_seg_mut!, route_mutation!, inversion_mut!
+using ..Neighborhood
+
+export pop_swap_mut!, pop_insert_mut!, pop_scramble_mut!, pop_scramble_seg_mut!, route_mutation!, inversion_mut!, EE_M, EE_M!
 
 function pop_replace!(genotype::Vector{Int64}, i_1, i_2)
     """
@@ -104,9 +106,31 @@ function route_mutation!(indices::Vector{Int64}, num_patients::Int64, mutate_rat
     end
 end
 
-# Missing from EE_M:
-# Need to return a new solution, instead of changing the old one.
-# Actual fitness function used.
+function EE_M!(individual, patients) # ::Gene
+    
+    centroids = []
+    for route in individual.gene_r
+        push!(centroids, (get_centroid(route, patients)))
+    end
+
+    for (route_index, route) in enumerate(individual.gene_r)
+        for (i, patient_id) in enumerate(route)
+            # Finds 2 closest tours based on minimum distance to centroids
+            neighbors = get_route_neighborhood(centroids, route_index, patients[patient_id])
+            deleteat!(route, i) # Remove patient from its current route
+            is_better_solution = first_apply_neighbor_insert!(individual.fitness, neighbors, routes, patient_id)
+            if is_better_solution == false
+                insert!(route, patient_id, i) # No better position...
+            end
+
+        end
+    end
+end
+
+
+# TODO:
+# Integrate the individual data type into this
+# Make this EE_M return the solution instead of directly changing it.
 
 function EE_M(individual, patients) # ::Gene
     
@@ -120,13 +144,14 @@ function EE_M(individual, patients) # ::Gene
             # Finds 2 closest tours based on minimum distance to centroids
             neighbors = get_route_neighborhood(centroids, route_index, patients[patient_id])
             deleteat!(route, i) # Remove patient from its current route
-            better_solution = first_apply_neighbor_insert!(individual.fitness, neighbors, routes, patient_id)
-            if better_solution == false
+            is_better_solution = first_apply_neighbor_insert!(individual.fitness, neighbors, routes, patient_id)
+            if is_better_solution == false
                 insert!(route, patient_id, i) # No better position...
             end
 
         end
     end
+    return individual
 end
 
 # sequence::Vector{Int}       # Sequence of the gene, represents an individual from population

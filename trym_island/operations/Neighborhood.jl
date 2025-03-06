@@ -5,9 +5,7 @@ export get_centroid, get_all_centroids, get_route_neighborhood, first_apply_neig
 function get_centroid(route, patients)
     sum_x = 0
     sum_y = 0
-    println(patients)
     for patient in route
-        print(patients[patient])
         sum_x += patients[patient].x_coord
         sum_y += patients[patient].y_coord
     end

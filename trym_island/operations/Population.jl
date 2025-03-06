@@ -5,6 +5,7 @@ import Random.randperm!
 import Random.shuffle!
 
 using ..Neighborhood
+using ..ParentSelection
 
 export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible, re_init
 
@@ -14,27 +15,48 @@ export init_permutation, init_bitstring, init_permutation_specific, repair!, is_
 
 function init_rand_pop(num_patients, num_nurses)
     gene_r = [[] for _ in 1:num_nurses]
-    patients = [i for i in 1:num_patients]
-    shuffle!(patients)
-    for i in patients
+    patients_list = [i for i in 1:num_patients]
+    shuffle!(patients_list)
+    for i in patients_list
         push!(gene_r[rand(1:num_nurses)], i)
     end
     return gene_r
 end
 
-function init_populations(num_patients, num_nurses, mu, n_p)
+function init_populations(patients, num_patients, num_nurses, mu, n_p)
     populations = [init_rand_pop(num_patients, num_nurses) for _ in 1:2]
     for pop in populations
-        # Generate two populations seemingly random? 
-        for i in 1:n_p
+        for _ in 1:n_p
             # Apparently the next steps:
             # Generate a new solution Sj using the EE_M mutator (defined in Section 2.3.2)
             # Add Sj in Pop_x
-
-            # 
+            solution = EE_M(pop[rand(1:size(pop, 1))], patients)
+            push!(pop, solution)
         end
-        # sequence = collect(Iterators.flatten(gene_r)) # Way to flatten the 2-d array
+        # Higher eval indicates worse individual
+        # r_m - constant
+        gamma = 1
+        time_pen = 1
+        num_time_pen = 1
+        scores = []
+        
+        for (i, individual) in enumerate(pop)
+            value = eval(individual, patients, travel_time_table, num_patients, r_m, gamma, time_pen, num_time_pen) 
+            push!(scores, (value, i))
+        end
+
+        sort!(scores, by=x->x[1], rev=true)
+        n_p_worst = scores[1:n_p]
+        sort!(n_p_worst, by=x->x[2], rev=true) # So that removing the individuals does not affect the other individuals' indices.
+        
+        for instance in n_p_worst
+            deleteat!(pop, instance[2])
+        end            
     end
+    # Additional steps:
+    # Determine Rmin, the minimum number of tours associated with a feasible solution in Pop1 or Pop2. Replicate (if needed) best feasible solution (Rmin routes) in Pop1.
+    # Replace Pop1 individuals with Rmin-route solutions using the procedure RI(Rmin).
+    # Replace Pop2 members with Rmin-1 -route solutions using the procedure RI(Rmin-1).
 
 end
 
@@ -47,18 +69,20 @@ function calculate_cost(route, patients, travel_time_table)
     time = 0
     for patient_id in route
         to = patient_id + 1
-        time += travel_time_table[from][to]
-        if time < patients[to].start_time
-            time = patients[to].start_time + patients[to].care_time
+        time += travel_time_table(from, to)
+        if time < patients[patient_id].start_time
+            time = patients[patient_id].start_time + patients[patient_id].care_time
             from = to
-        elseif patients[to].start_time <= time <= patients[to].end_time - patients[to].care_time
-            time += patients[to].care_time
+        elseif patients[patient_id].start_time <= time <= patients[patient_id].end_time - patients[patient_id].care_time
+            time += patients[patient_id].care_time
             from = to
         else
+            println(route)
+            println(time)
             return -1, true
         end
     end
-    time += travel_time_table[from][1] # Return to depot
+    time += travel_time_table(from, 1) # Return to depot
     return time, false
 end
 
@@ -122,30 +146,37 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
 
     violation_patients = []
     centroids = get_all_centroids(routes, patients)
-    i = 0
-    while i < size(patient_list, 1)
+
+    while size(patient_list, 1) > 0
         regret_costs = []
-        for (i, patient_id) in enumerate(patient_list)
-            closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id])
+        i = 1
+        while i <= size(patient_list, 1)
+            patient_id = patient_list[i]
+            closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id]) 
             cost, insertion_pos, time_violation = regret_cost(patient_id, closest_neighbors, routes, travel_time_table, patients)
             if time_violation
                 deleteat!(patient_list, i)
                 push!(violation_patients, patient_id)
+                i -= 2
             else
-                push!(regret_costs, (cost, insertion_pos, patient_id))
+                push!(regret_costs, (cost, insertion_pos, patient_id, i))
             end
+            i += 1
         end
-        # The patients with the highest regret costs are inserted first, since they will have fewer good options later.
 
+        # The patients with the highest regret costs are inserted first, since they will have fewer good options later.
         insertion_patient_info = regret_costs[argmax(regret_costs)]
         position = insertion_patient_info[2][2]
         route_id = insertion_patient_info[2][3]
         patient_id = insertion_patient_info[3]
+        i = insertion_patient_info[4]
         # Insert in locations that minimize cost and do not violate time-window constraint.
-        push!(routes[route_id], position, patient_id)
+        insert!(routes[route_id], position, patient_id)
+        deleteat!(patient_list, i)
         
         # Once I have inserted, I can update the centroid for the route inserted into.
-        centroid[route_id] = (get_centroid(route, patients))
+        centroids[route_id] = (get_centroid(routes[route_id], patients))
+        
     end 
 
     return routes
