@@ -6,7 +6,6 @@ using ..Models
 export generic_fitness, check_feasible
 
 
-
 function constrain_cal(curr_gene::Gene, depot::Depot, patients::Vector{Patient}, time_matrix)
     total_tw = 0
     duration_array = Vector{Float32}()
@@ -55,7 +54,6 @@ end
 
 function check_feasible(curr_gene::Gene, patients::Vector{Patient}, depot::Depot, time_matrix)
     tw_array, duration_array, cap_array = constrain_cal(curr_gene, depot, patients, time_matrix)
-
 
     if any(cap_array .> depot.nurse_cap)  # Check if any duration violation exists
         return 1
