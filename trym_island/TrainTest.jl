@@ -1,15 +1,20 @@
 module TrainTest
 
-include("models/Models.jl")
-using .Models
+include("Modules.jl")
+using .Modules
 
-include("operations/Operations.jl")
-using .Operations
+
+# include("models/Models.jl")
+# using .Models
+
+# include("operations/Operations.jl")
+# using .Operations
 
 include("utils/NurseReader.jl")
 using .NurseReader
 
 using CSV
+
 
 # extract_nurse_data("./data/test/test_2.json", "./data/bin/serialized_test_2.bin")
 depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_train_9.bin")
@@ -30,20 +35,30 @@ function run()
     init_pop = @time init_populations(patients, size(patients, 1), depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap, depot.return_time)
 
     populations = []
-    for pop in init_pop
+    for (i, pop) in enumerate(init_pop)
         popu = []
-        for individual in pop
+        fitness_array = []
+        best_id = 0
+        best_fitness = typemax(Int32)
+        for (j, individual) in enumerate(pop)
             gene_r = individual
             sequence = collect(Iterators.flatten(gene_r))
             fitness = 0
-            time_violation = false
+            has_time_violation = false
             for route in individual
+                # Use the fitness function related to population.
+                # Add another field to the Gene struct for objective_fitness 
                 cost, time_violation, _, _ = calculate_cost(route, patients, time_matrix)
                 fitness += cost
                 if time_violation
-                    break
+                    has_time_violation = true
                 end
             end
+            fitness *= has_time_violation ? 5 : 1
+            if fitness < best_fitness
+                best_id = j
+            end
+            push!(fitness_array, fitness)
             push!(popu, Gene(
                 sequence,
                 fitness,
@@ -55,19 +70,32 @@ function run()
                 []
             ))
         end
+        push!(populations, ModelPop(
+            i,
+            size(patients, 1),
+            popu,
+            fitness_array,
+            best_id,
+            [],
+            [],
+            pop_size,
+            growth_size,
+            "./trym_island/logs"
+        ))
     end
-    # clear!(init_pop)
 
     println(populations[1])
-    throw(Error(""))
+
     current_gen = 0 
     # Evolutionary loop
     while current_gen < NUM_GEN
         for (i, pop) in enumerate(populations)  # Embarrasingly Parallelizable Here. So, try and do something with that... add Threads.@threads
             for i in 1:growth_size
-
+                
                 # Parent Selection:
-                roulette_wheel_select(population, fitness_scores, num_parents)
+                parent_ids = select_parents(pop)
+                println(parent_ids)
+                throw(Error(""))
                 # Try first with roulette and then stochastic universal sampling
                 if i == 1
                     # Handle island 1

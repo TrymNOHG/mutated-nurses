@@ -190,15 +190,13 @@ function init_populations(patients, num_patients, num_nurses, mu, n_p, travel_ti
         end            
     end
 
-    println("Over the first part!")
     # I am looking for the minimum number of nurses needed for a feasible/viable solution. Assumption here is that fewer nurses generally means shorter travel time.
     best_individual, r_min_1 = r_min(populations[1], patients, travel_time_table)
     best_individual_2, r_min_2 = r_min(populations[2], patients, travel_time_table)
 
     populations[1][1] = r_min_2 < r_min_1 ? best_individual_2 : best_individual
     r_min_1 = min(r_min_1, r_min_2)
-    println("Min found to be:")
-    println(r_min_1)
+
     # Here, I re-initialize the pop_1 with r_min nurses in an effort to construct fewer routes (generally more optimal). All but the best solution is re-initialized.
     for i in 2:size(populations[1], 1)
         populations[1][i] = re_init(r_min_1, num_patients, travel_time_table, patients)
@@ -208,48 +206,6 @@ function init_populations(patients, num_patients, num_nurses, mu, n_p, travel_ti
     for i in 1:size(populations[2], 1)
         populations[2][i] = re_init(r_min_1-1, num_patients, travel_time_table, patients)
     end
-
-    best_individual = (typemax(Int32), -1)
-    for individual in populations[1]
-        total_time = 0
-        time_violation = false
-        for route in individual
-            cost, time_violation, _, _ = calculate_cost(route, patients, travel_time_table)
-            println(cost)
-            total_time += cost
-            if time_violation
-                break
-            end
-        end
-        if !time_violation
-            if total_time < best_individual[1]
-                best_individual = (total_time, individual)
-            end
-        end
-    end
-
-    println(best_individual)
-
-    best_individual = (typemax(Int32), -1)
-    for individual in populations[2]
-        total_time = 0
-        time_violation = false
-        for route in individual
-            cost, time_violation, _, _ = calculate_cost(route, patients, travel_time_table)
-            total_time += cost
-            if time_violation
-                break
-            end
-        end
-        if !time_violation
-            if total_time < best_individual[1]
-                best_individual = (total_time, individual)
-            end
-        end
-    end
-
-    println(best_individual)
-
     
     return populations
 end
