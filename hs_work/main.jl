@@ -10,9 +10,11 @@ include("utils/EAprogress.jl")
 using .EAprogress
 include("utils/FitnFeasible.jl")
 using .FitnFeasible
+include("operations/LocalSearch.jl")
+using .LocalSearch
 using DataFrames, BenchmarkTools, Statistics, Serialization
-init_mu = 100
-init_lambda = 20
+init_mu = 25
+init_lambda = 40
 max_iter = 100
 
 
@@ -45,9 +47,14 @@ end
 
 # Main Evo Alg Loop
 
+# Note, when you update penalties, update the fitness of all solutions.
+
 penaltyCapacity::Float32 = penaltyCap4Split(tt_tuple, patients)
 penaltyDuration = 1
 penaltyTW = 1
+tau = 10
+gamma_wt = 1.0
+gamma_tw = 1.0
 global all_child = Vector{Gene}()
 fitness_gen = Vector{Float32}()
 global no_feasible = 0
@@ -70,12 +77,15 @@ while no_feasible < 1
     end
     for child_nb in 1:genetic_pool.lambda
         parent_1, parent_2 = binary_tournament(genetic_pool)
-        child_gene_seq = o1cross(parent_1, parent_2)
+        p1_seq = genetic_pool.genes[parent_1].sequence
+        p2_seq = genetic_pool.genes[parent_2].sequence
+        child_gene_seq = o1cross(p1_seq, p2_seq)
         child_gene = Gene(
             child_gene_seq,               # sequence
             0.0,                         # fitness
             Vector{Vector{Int}}(),       # gene_r
-            zeros(Int, n_col-1),         # sum_load
+            zeros(Int, n_col-1),    # sum_load
+            Vector{Int}()         
         )
         child_gene.fitness = -Inf
         child_gene.gene_r = [Vector{Int}() for _ in 1:depot.num_nurses]
@@ -84,19 +94,17 @@ while no_feasible < 1
         end
         fitnes_rec = 0
         fitnes_rec = splitbellman(child_gene, depot, patients, genetic_pool.gene_length, penaltyCapacity, depot.return_time, penaltyDuration, penaltyTW, time_matrix)
+        child_gene.new_routes = collect(1:length(child_gene.gene_r))
+
+        local_search!(child_gene, depot, patients, penaltyDuration, penaltyCapacity, penaltyTW, tau, gamma_wt, gamma_tw, time_matrix)
+
         push!(all_child, child_gene)
     end
     for (idx,child) in enumerate(all_child)
         push!(genetic_pool.genes, child)
         push!(genetic_pool.fitness_array, child.fitness)
-        is_feasible = check_feasible(child, patients, depot, time_matrix)
-        if is_feasible == 0
-            push!(genetic_pool.feas_genes, genetic_pool.mu + idx)
-        else
-            push!(genetic_pool.infeas_genes, [genetic_pool.mu + idx,is_feasible])
-        end
     end
-    min_indicies = partialsortperm(genetic_pool.fitness_array, 1:10)
+    min_indicies = partialsortperm(genetic_pool.fitness_array, 1:genetic_pool.lambda)
     delete_at_indices!(genetic_pool.genes, min_indicies)
     delete_at_indices!(genetic_pool.fitness_array, min_indicies)
     curr_pop_size = length(genetic_pool.genes)
@@ -114,6 +122,7 @@ while no_feasible < 1
     push!(fitness_gen, maximum(genetic_pool.fitness_array))
     println("Gen number: ", gen_iter)
     println("Feasible sol: ", genetic_pool.feas_genes)
+    println("In-Feasible sol: ", length(genetic_pool.infeas_genes))
     println("Max fitness: ", maximum(genetic_pool.fitness_array))
     println("-----------------")
     global no_feasible = length(genetic_pool.feas_genes)
