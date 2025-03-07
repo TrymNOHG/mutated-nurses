@@ -4,8 +4,6 @@ export perform_crossover, order_1_crossover!, PMX!, gen_edge_table, TBX!, edge_3
 
 import Random.shuffle!
 
-include("../models/Solution.jl")
-
 function perform_crossover(parents, num_patients, cross_rate)
     """
     This function performs one-point cross-over on a list of parents. To increase
@@ -249,24 +247,6 @@ function TBX!(parent_1, parent_2, survivors, num_patients)
     child = Solution(child_values, parent_1.indices)
     push!(survivors, child)
 
-end
-
-function bitstring_crossover!(parent_1, parent_2, survivors)
-    split_index = trunc(Int, (rand() * (individual_length - 2))) + 2
-    child_1 = BitVector()
-    child_2 = BitVector()
-    for i in 1:individual_length
-        if i < split_index
-            push!(child_1, parent_1[i])
-            push!(child_2, parent_2[i])
-        else
-            push!(child_1, parent_2[i])
-            push!(child_2, parent_1[i])
-        end
-    end
-    current_index += 2
-    push!(survivors, child_1)
-    push!(survivors, child_2)
 end
 
 end

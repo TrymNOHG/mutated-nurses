@@ -33,17 +33,17 @@ depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
 function run()
     config = Config(
         size(patients, 1),  # Genotype size
-        1000,                 # Population size
-        1000,                 # Number of generations
-        0.1,                # Cross-over rate
+        350,                 # Population size
+        2000,                 # Number of generations
+        0.9,                # Cross-over rate
         0.01,               # Mutate rate
         "./src/logs/kp/"    # History directory
     )
         
-    population = init_permutation_specific(depot.num_nurses, config.genotype_size, config.pop_size)    # Initialize population.
-    for individual in population
-        repair!(individual, patients, travel_time_table)
-    end
+    population = init_permutation_specific(depot.num_nurses, config.genotype_size, config.pop_size, travel_time_table)    # Initialize population.
+    # for individual in population
+    #     repair!(individual, patients, travel_time_table)
+    # end
     # println(population[1])
 
     # println(total_patients)
@@ -63,31 +63,41 @@ function run()
         parents = tournament_select(
             population,             # Population 
             size(population, 1),                     # Number of parents selected (lambda)
-            4,                     # k - Number of participants in the tournament
+            2,                     # k - Number of participants in the tournament
             travel_time_table,       # The time it takes to travel between patients
             patients,               # Patient information
-            depot.return_time,       # Depot return time
-            depot.nurse_cap         # Nurse capacity
+            depot                   # Depot info
         )
-        
+
         # println(nurse_fitness(population[1], travel_time_table, patients, depot.return_time, depot.nurse_cap))
         
-        # println(parents)
         println("Recombination")
         survivors = perform_crossover(parents, config.genotype_size, config.cross_rate)
-        # print(survivors)
+
         # Recombination
         # Mutate
         println("Mutation")
         # pop_swap_mut, pop_insert_mut, pop_scramble_mut, pop_scramble_seg_mut
         for solution in survivors
+            # pop_insert_mut!(solution.values, config.mutate_rate)
+            # repair!(solution, patients, travel_time_table)
+            # inversion_mut!(solution.values, config.mutate_rate)
             pop_scramble_seg_mut!(solution.values, config.mutate_rate)
-            repair!(solution, patients, travel_time_table)
+            if rand() < 0.001
+                route_mutation!(solution.indices,  config.genotype_size, config.mutate_rate)
+            end
         end
+
+        # fitnesses = []
+        # for (i, individual) in enumerate(parents)
+        #     push!(fitnesses, (nurse_fitness(individual, travel_time_table, patients, depot)[1], individual))
+        # end
+        # sort!(fitnesses, by=x->x[1])
 
         # Survivor Selection
         population = survivors
-
+        # population[1:10] = last.(fitnesses)[1:10]
+        # println(population[1:10])
         current_gen += 1
     end
 

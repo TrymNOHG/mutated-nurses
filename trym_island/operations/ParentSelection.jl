@@ -6,8 +6,7 @@ using DataStructures
 
 export tournament_select, nurse_fitness, simple_nurse_fitness
 
-include("./Population.jl")
-using .Population
+using ..Operations
 
 function select_parents!(population, num_parents, output_file, best_individual)
     fitness_scores, best_of_pop = sigma_select(population, output_file, 2)
@@ -31,26 +30,21 @@ function pop_fitness(population::Vector{T}, travel_time_table, patients, depot, 
             println(individ_fitness)
         end
         if objective_value < 2000
-            feasible, _, _ = is_feasible(individual, patients, depot, travel_time_table)
-            # print(individual)
-            # throw(Error(""))
-            if feasible
-                println("Objective value fell under 1000 for:")
-                println()
-                println(individual)
-                actual_solution = []
-                for i in 0:size(individual.indices, 1)
-                    if i == 0
-                        route = individual.values[1:individual.indices[1] - 1]
-                    elseif i == size(individual.indices, 1)
-                        route = individual.values[individual.indices[i]:end]
-                    else
-                        route = individual.values[individual.indices[i]:individual.indices[i+1] - 1]
-                    end
-                    push!(actual_solution, route)
+            println("Objective value fell under 1000 for:")
+            println(is_feasible(individual, patients, depot, travel_time_table))
+            println(individual)
+            actual_solution = []
+            for i in 0:size(individual.indices, 1)
+                if i == 0
+                    route = individual.values[1:individual.indices[1] - 1]
+                elseif i == size(individual.indices, 1)
+                    route = individual.values[individual.indices[i]:end]
+                else
+                    route = individual.values[individual.indices[i]:individual.indices[i+1] - 1]
                 end
-                println(actual_solution)
+                actual_solution.append(route)
             end
+            println(actual_solution)
         end
         push!(fitness_scores, individ_fitness)
         total_fitness += individ_fitness
@@ -192,17 +186,17 @@ function nurse_fitness(individual, travel_time_table, patients, depot)
         objective_value += travel_time_table[from][to]
 
         if nurse_time > depot.return_time
-            nurse_time *= 10            # Penalty for late return
+            nurse_time *= 5            # Penalty for late return
         end
 
         if nurse_demand > depot.nurse_cap      # Penalty for exceeding nurse capacity
-            nurse_time *= 10
+            nurse_time *= 5
         end
 
         total_time += nurse_time
     end
 
-    feasible, multiplier, total_time = is_feasible(individual, patients, depot, travel_time_table)
+    feasible, multiplier = is_feasible(individual, patients, depot, travel_time_table)
     total_time *= multiplier
 
     # If we use the total_time, then this is a minimization optimization problem. Keep this in mind.
