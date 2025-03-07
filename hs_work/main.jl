@@ -1,28 +1,29 @@
-# include("models/Gene.jl")
-# include("models/Population.jl")
 include("models/Models.jl")
 using .Models
 include("utils/NurseReader.jl")
 using .NurseReader
-include("operations/population_init.jl")
-using .PopInit
-include("operations/split.jl")
-using .split
-include("operations/crossover.jl")
-using .crossovers
-
+include("operations/Split.jl")
+using .Split
+include("operations/Crossover.jl")
+using .Crossovers
+include("utils/EAprogress.jl")
+using .EAprogress
+include("utils/FitnFeasible.jl")
+using .FitnFeasible
 using DataFrames, BenchmarkTools, Statistics, Serialization
-init_mu = 1000
-init_lambda = 3
-maxdem = 0
-# filepath = "train\\train_0.json"
-# save_path = "ser_train/serialized_data_0.bin"
+init_mu = 100
+init_lambda = 20
+max_iter = 100
+
+
+# Code to cache training files  
+# filepath = "train/train_3.json"
+# save_path = "ser_train/serialized_data_3.bin"
 # @time extract_nurse_data(filepath, save_path)
 
-depot, patients, tt_tuple, n_col = load_data("ser_train/serialized_data_0.bin")
-# time_matrix = let t=tt_tuple, c=n_col
-#     (i, j) -> @inbounds t[(i-1)*c + j]
-# end
+
+load_path = "ser_train/serialized_data_0.bin"
+depot, patients, tt_tuple, n_col = load_data(load_path)
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
 @inline function time_matrix(i::Int, j::Int)
@@ -30,92 +31,94 @@ const N_COL = n_col        # for type stability
     TT_TUPLE[(i-1)*N_COL + j]
 end
 
-genetic_pool = Population(
-    n_col - 1,  # gene_length = number of patients
-    [Gene(
-        Vector{Int}(),               # sequence
-        0.0,                         # fitness
-        Vector{Vector{Int}}(),       # gene_r
-        zeros(Int, n_col-1),         # d0_x - use zeros() instead of Vector constructor with 0.0
-        zeros(Float32, n_col-1),     # dx_0
-        zeros(Float32, n_col-1),     # dnext
-        zeros(Int, n_col-1),         # sum_load
-        zeros(Float32, n_col-1)      # sum_dist
-    ) for _ in 1:init_mu],
-    fill(-Inf, init_mu),  # fitness_array
-    Vector{Int}[],  # feas_genes
-    Vector{Int}[],  # infeas_genes
-    init_mu,
-    init_lambda
-)
+function delete_at_indices!(arr::AbstractVector, indices_to_delete::AbstractVector{Int})
+    # Sort the indices in reverse order to avoid index shifting issues
+    sorted_indices = sort(indices_to_delete, rev=true)
 
-genetic_pool.gene_length = n_col-1
-all_init_genes = random_pop(genetic_pool.mu, genetic_pool.gene_length)
-
-
-for (g_no, gene_seq) in enumerate(all_init_genes)
-    curr_gene = genetic_pool.genes[g_no]
-    curr_gene.sequence = gene_seq
-    curr_gene.fitness = -Inf
-    curr_gene.gene_r = [Vector{Int}() for _ in 1:depot.num_nurses]
-    for (x,pat_id) in enumerate(curr_gene.sequence)
-        curr_gene.d0_x[x] = time_matrix(1,pat_id)
-        curr_gene.dx_0[x] = time_matrix(pat_id,1)
-        x == genetic_pool.gene_length ? curr_gene.dnext[x] = -Inf : curr_gene.dnext[x] = time_matrix(pat_id, curr_gene.sequence[x+1])
-        x == 1 ? curr_gene.sum_load[x] = patients[pat_id].demand : curr_gene.sum_load[x] = curr_gene.sum_load[x-1] + patients[pat_id].demand
-        x == 1 ? curr_gene.sum_dist[x] = 0 : curr_gene.sum_dist[x] = curr_gene.sum_dist[x-1] + curr_gene.dnext[x-1]
+    # Delete elements at the specified indices
+    for index in sorted_indices
+        deleteat!(arr, index)
     end
+
+    return arr
 end
 
+# Main Evo Alg Loop
 
-maxDist::Float32 = maximum(tt_tuple)
-dem_list = Vector{Int}()
-dem = 0
-for pat in patients
-    dem = Int(pat.demand)
-    push!(dem_list, dem)
-end
-maxdem = maximum(dem_list)
-penaltyCapacity::Float32 = max(0.1f0, min(1000.0f0, (maxDist / Float32(maxdem))))
-
-@time for (iter,curr_gene) in enumerate(genetic_pool.genes)
-    fitnes_rec = 0
-    fitnes_rec = split2routes(curr_gene, depot, genetic_pool.gene_length, penaltyCapacity)
-    genetic_pool.fitness_array[iter] = fitnes_rec
-    # break
-end
-println("-----------------")
-route_dem = 0
-demand_violation = 0
-routes_checked = 0
-sum_demand = 0
-final_sample_value = 0
-route_list = zeros(init_mu)     # contains number of routes per gene
-@time for sample in 1:init_mu
-    global route_list[sample] = 0
-    for (iter,route) in enumerate(genetic_pool.genes[sample].gene_r)
-        if route == []
-            continue
-        end
-        route_dem = 0
-        for client_id in route
-            route_dem += patients[client_id].demand
-        end
-        global routes_checked += 1
-        route_list[sample] +=1
-        global sum_demand += route_dem
-        if route_dem>depot.nurse_cap
-            # println("Nurs capacity violated, idx: ", iter, ". Total demand on route: ", route_dem)
-            global demand_violation += 1
+penaltyCapacity::Float32 = penaltyCap4Split(tt_tuple, patients)
+penaltyDuration = 1
+penaltyTW = 1
+global all_child = Vector{Gene}()
+fitness_gen = Vector{Float32}()
+global no_feasible = 0
+global gen_iter = 1
+# for gen_iter in 1:max_iter
+while no_feasible < 1
+    global all_child = Vector{Gene}()
+    if gen_iter == 1
+        global genetic_pool = pop_init(init_mu, init_lambda, n_col-1, depot, patients,penaltyCapacity,penaltyDuration,penaltyTW, time_matrix)
+        curr_pop_size = length(genetic_pool.genes)
+        for sample in 1:curr_pop_size
+            curr_gene = genetic_pool.genes[sample]
+            is_feasible = check_feasible(curr_gene, patients, depot, time_matrix)
+            if is_feasible == 0
+                push!(genetic_pool.feas_genes, sample)
+            else
+                push!(genetic_pool.infeas_genes, [sample,is_feasible])
+            end
         end
     end
-    global final_sample_value = sample
-end
-
-println("Total Demand Violations: ", demand_violation)
-println("Total routes checked: ", routes_checked)
-println("Average demand: ", sum_demand/routes_checked)
-println("Route list: ", route_list)
-println(final_sample_value)
-# println(genetic_pool.fitness_array)
-println(genetic_pool.feas_genes)
+    for child_nb in 1:genetic_pool.lambda
+        parent_1, parent_2 = binary_tournament(genetic_pool)
+        child_gene_seq = o1cross(parent_1, parent_2)
+        child_gene = Gene(
+            child_gene_seq,               # sequence
+            0.0,                         # fitness
+            Vector{Vector{Int}}(),       # gene_r
+            zeros(Int, n_col-1),         # sum_load
+        )
+        child_gene.fitness = -Inf
+        child_gene.gene_r = [Vector{Int}() for _ in 1:depot.num_nurses]
+        for (x,pat_id) in enumerate(child_gene.sequence)
+            x == 1 ? child_gene.sum_load[x] = patients[pat_id].demand : child_gene.sum_load[x] = child_gene.sum_load[x-1] + patients[pat_id].demand
+        end
+        fitnes_rec = 0
+        fitnes_rec = splitbellman(child_gene, depot, patients, genetic_pool.gene_length, penaltyCapacity, depot.return_time, penaltyDuration, penaltyTW, time_matrix)
+        push!(all_child, child_gene)
+    end
+    for (idx,child) in enumerate(all_child)
+        push!(genetic_pool.genes, child)
+        push!(genetic_pool.fitness_array, child.fitness)
+        is_feasible = check_feasible(child, patients, depot, time_matrix)
+        if is_feasible == 0
+            push!(genetic_pool.feas_genes, genetic_pool.mu + idx)
+        else
+            push!(genetic_pool.infeas_genes, [genetic_pool.mu + idx,is_feasible])
+        end
+    end
+    min_indicies = partialsortperm(genetic_pool.fitness_array, 1:10)
+    delete_at_indices!(genetic_pool.genes, min_indicies)
+    delete_at_indices!(genetic_pool.fitness_array, min_indicies)
+    curr_pop_size = length(genetic_pool.genes)
+    genetic_pool.feas_genes = Vector{Int}[]
+    genetic_pool.infeas_genes = Vector{Vector{Int}}[]
+    for sample in 1:curr_pop_size
+        curr_gene = genetic_pool.genes[sample]
+        is_feasible = check_feasible(curr_gene, patients, depot, time_matrix)
+        if is_feasible == 0
+            push!(genetic_pool.feas_genes, sample)
+        else
+            push!(genetic_pool.infeas_genes, [sample,is_feasible])
+        end
+    end
+    push!(fitness_gen, maximum(genetic_pool.fitness_array))
+    println("Gen number: ", gen_iter)
+    println("Feasible sol: ", genetic_pool.feas_genes)
+    println("Max fitness: ", maximum(genetic_pool.fitness_array))
+    println("-----------------")
+    global no_feasible = length(genetic_pool.feas_genes)
+    global gen_iter += 1 
+end            
+# println(genetic_pool.infeas_genes)
+# println(genetic_pool.feas_genes)
+# println(fitness_gen)

@@ -1,4 +1,4 @@
-module crossovers
+module Crossovers
 
 using ..Models: Patient, Depot, Gene 
 using StatsBase: sample
