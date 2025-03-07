@@ -18,8 +18,13 @@ end
 
 function get_all_centroids(routes, patients)
     centroids = []
+    depot_neighbor = false
     for route in routes
         if size(route, 1) == 0
+            if !depot_neighbor
+                push!(centroids, (0, 0))
+                depot_neighbor = true
+            end
             continue
         end
         push!(centroids, (get_centroid(route, patients)))

@@ -5,15 +5,8 @@ import Random.randperm!
 import Random.shuffle!
 
 using ..Operations
-# using ..Neighborhood
-# using ..ParentSelection
-# using ..PermutationMutation
 
 export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible, re_init, init_populations, calculate_cost, init_seq_heur_pop, solomon_seq_heur
-
-# Feasible solutions for initial populations are first generated using a sequential insertion heuristic in which customers are inserted in 
-# random order at randomly chosen insertion positions within routes. This strategy is fast and simple while ensuring unbiased solution generation. 
-# The initialization procedure then proceeds as follows:
 
 function init_rand_pop(num_patients, num_nurses)
     gene_r = [[] for _ in 1:num_nurses]
@@ -24,8 +17,6 @@ function init_rand_pop(num_patients, num_nurses)
     end
     return gene_r
 end
-
-# The sequential insertion could be done per route as well, building routes up.
 
 function solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients, nurse_cap, latest_return)
     """
@@ -46,7 +37,6 @@ function solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients,
         # Find best customer with best heuristic value and insert customer. Rinse and repeat.
         candidates = []
         for (i, patient_id) in enumerate(patient_list)
-            # Gather best heuristic value for feasible patient insertions.
             best_insertion = (typemax(Int32), -1)
             if size(current_route, 1) == 0
                 best_insertion = (travel_time_table(1, patient_id+1), 1, patient_id, i)
@@ -68,20 +58,12 @@ function solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients,
                 push!(candidates, best_insertion)
             end
         end
-        if size(candidates, 1) == 0 || rand() < 0.5
+        if size(candidates, 1) == 0 || rand() < 0.3
             if size(routes, 1) == num_nurses
                 break
             else
                 push!(routes, [])
                 current_route = routes[end]
-                # if size(current_route, 1) == 1
-                #     insert!(patient_list, 1, current_route[1])
-                #     routes[end] = [pop!(patient_list)]
-                #     current_route = routes[end]
-                # else
-                #     push!(routes, [])
-                #     current_route = routes[end]
-                # end
             end
         else
             sort!(candidates, by=x->x[1])
@@ -112,7 +94,10 @@ function solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients,
                 end
                 i += 1
             end
-    
+            
+            if size(regret_costs, 1) == 0
+                break
+            end
             # The patients with the highest regret costs are inserted first, since they will have fewer good options later.
             insertion_patient_info = regret_costs[argmax(regret_costs)]
             position = insertion_patient_info[2][2]
@@ -176,14 +161,7 @@ function init_populations(patients, num_patients, num_nurses, mu, n_p, travel_ti
     populations = [[solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients, capacity, latest_return) for _ in 1:mu] for _ in 1:2]
     for pop in populations
         for _ in 1:n_p
-            # Apparently the next steps:
-            # Generate a new solution Sj using the EE_M mutator (defined in Section 2.3.2)
-            # Add Sj in Pop_x
             solution = EE_M(pop[rand(1:size(pop, 1))], patients, travel_time_table)
-            # println("EE_M solution:")
-            # println(solution)
-            # println("Population")
-            # println(pop)
             push!(pop, solution)
         end
         # Higher eval indicates worse individual
@@ -211,7 +189,7 @@ function init_populations(patients, num_patients, num_nurses, mu, n_p, travel_ti
             deleteat!(pop, instance[2])
         end            
     end
-    # println(populations[1][5])
+
     println("Over the first part!")
     # I am looking for the minimum number of nurses needed for a feasible/viable solution. Assumption here is that fewer nurses generally means shorter travel time.
     best_individual, r_min_1 = r_min(populations[1], patients, travel_time_table)
@@ -365,49 +343,57 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
     Potential improvements:
         - There are a lot of places for improvements. There are some embarrasingly parallelizable snippets, as well as places where caching should definitely be leveraged.
     """
-    patient_list = [i for i in 1:num_patients]
-    shuffle!(patient_list)
-    routes = [[pop!(patient_list)] for i in 1:num_nurses]
+    found_solution = false
+    while !found_solution
+        patient_list = [i for i in 1:num_patients]
+        shuffle!(patient_list)
+        routes = [[pop!(patient_list)] for i in 1:num_nurses]
 
-    violation_patients = []
-    centroids = get_all_centroids(routes, patients)
+        violation_patients = []
+        centroids = get_all_centroids(routes, patients)
 
-    while size(patient_list, 1) > 0
-        regret_costs = []
-        i = 1
-        while i <= size(patient_list, 1)
-            patient_id = patient_list[i]
-            # closest_neighbors = get_route_neighborhood(5, centroids, 0, patients[patient_id]) # Allows more than just 2 route neighbors, which could be interesting to look at 
-            closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id]) 
-            cost, insertion_pos, time_violation = regret_cost(patient_id, closest_neighbors, routes, travel_time_table, patients)
-            if time_violation
-                deleteat!(patient_list, i)
-                push!(violation_patients, patient_id)
-                # i -= i == 1 ? 1 : 2
-                i -= 1
-            else
-                push!(regret_costs, (cost, insertion_pos, patient_id, i))
+        while size(patient_list, 1) > 0
+            regret_costs = []
+            i = 1
+            while i <= size(patient_list, 1)
+                patient_id = patient_list[i]
+                # closest_neighbors = get_route_neighborhood(5, centroids, 0, patients[patient_id]) # Allows more than just 2 route neighbors, which could be interesting to look at 
+                closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id]) 
+                cost, insertion_pos, time_violation = regret_cost(patient_id, closest_neighbors, routes, travel_time_table, patients)
+                if time_violation
+                    deleteat!(patient_list, i)
+                    push!(violation_patients, patient_id)
+                    # i -= i == 1 ? 1 : 2
+                    i -= 1
+                else
+                    push!(regret_costs, (cost, insertion_pos, patient_id, i))
+                end
+                i += 1
             end
-            i += 1
+
+            # The patients with the highest regret costs are inserted first, since they will have fewer good options later.
+            if size(regret_costs, 1) == 0
+                break
+            end
+            insertion_patient_info = regret_costs[argmax(regret_costs)]
+            position = insertion_patient_info[2][2]
+            route_id = insertion_patient_info[2][3]
+            patient_id = insertion_patient_info[3]
+            i = insertion_patient_info[4]
+            # Insert in locations that minimize cost and do not violate time-window constraint.
+            insert!(routes[route_id], position, patient_id)
+            deleteat!(patient_list, i)
+            
+            # Once I have inserted, I can update the centroid for the route inserted into.
+            centroids[route_id] = (get_centroid(routes[route_id], patients))
+            
+        end 
+        if size(patient_list, 1) > 0
+            continue
         end
 
-        # The patients with the highest regret costs are inserted first, since they will have fewer good options later.
-        insertion_patient_info = regret_costs[argmax(regret_costs)]
-        position = insertion_patient_info[2][2]
-        route_id = insertion_patient_info[2][3]
-        patient_id = insertion_patient_info[3]
-        i = insertion_patient_info[4]
-        # Insert in locations that minimize cost and do not violate time-window constraint.
-        insert!(routes[route_id], position, patient_id)
-        deleteat!(patient_list, i)
-        
-        # Once I have inserted, I can update the centroid for the route inserted into.
-        centroids[route_id] = (get_centroid(routes[route_id], patients))
-        
-    end 
-
-    return routes
-
+        return routes
+    end
     # Now to handle the infeasible patients...
     # Need extended insertion regret cost function...
     # Test the function and see if I get any violations at all from this construction...
