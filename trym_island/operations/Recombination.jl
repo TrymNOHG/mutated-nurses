@@ -252,8 +252,7 @@ function TBX!(parent_1, parent_2, survivors, num_patients)
 
 end
 
-function IB_X(travel_time_table, patients, parent_1, parent_2, k=2)
-    println(parent_1)
+function IB_X(travel_time_table, patients, parent_1, parent_2, num_nurses, k=2)
     unassigned_patients = Set{Int32}()
     r_1 = [] # Will contain k routes from parent_1
     distances = []
@@ -264,12 +263,9 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, k=2)
         push!(distances, (route_distance(route, travel_time_table)/size(route, 1), route))
     end
     
-    println("Distances")
-    println(distances)
     for _ in 1:k
         max_intra_route_dist = argmax(distances) # Max distance between children
         push!(r_1, distances[max_intra_route_dist][2])
-        println(distances[max_intra_route_dist])
         deleteat!(distances, max_intra_route_dist)
     end
 
@@ -305,29 +301,100 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, k=2)
 
     unassigned_patients_2 = Set{Int32}()
     for remain_route in avg_centroid_dist
-        union!(unassigned_patients, parent_2[remain_route[2]]) # This adds all the patients not included in parent 1's route.
+        union!(unassigned_patients_2, parent_2[remain_route[2]]) # This adds all the patients not included in parent 1's route.
     end
 
-    unassigned_patients = setdiff(unassigned_patients, intersect(Set{Int32}(collect(Iterators.flatten(r_2))), unassigned_patients))
-    unassigned_patients_2 = setdiff(unassigned_patients_2, intersect(Set{Int32}(collect(Iterators.flatten(r_1))), unassigned_patients_2))
+    r_1_flatten = collect(Iterators.flatten(r_1))
+    r_2_flatten = collect(Iterators.flatten(r_2))
+
+    unassigned_patients = setdiff(unassigned_patients, Set{Int32}(r_2_flatten))
+    unassigned_patients_2 = setdiff(unassigned_patients_2, Set{Int32}(r_1_flatten))
 
     unassigned = union(unassigned_patients, unassigned_patients_2)
-    println("Unassigned")
-    println(unassigned)
-    println("R1")
-    println(r_1)
-    println("R2")
-    println(r_2)
 
+    # Random removal first, then try based on largest travel time between consecutive patients, (since we are trying to minimize total travel time and not total time, wait time is not a great heuristic).
+
+    for (i, route) in enumerate(r_1)
+        ind_to_remove = Vector{Int}()
+        for i in size(route, 1)
+            if rand() < 0.1 # Tweak this...
+                push!(ind_to_remove, i)
+                if route[i] ∉ r_2_flatten
+                    push!(unassigned, route[i])
+                end
+            end
+        end
+        if size(route, 1) == size(ind_to_remove, 1)
+            deleteat!(r_1, i)
+        elseif size(ind_to_remove, 1) == 0
+            continue
+        else
+            delete_at_indices!(route, ind_to_remove)
+        end
+    end
+
+    # Use r_2 flatten to draw candidates...
+    
+    current_route_id = 1
+    current_route = r_1[current_route_id]
+    while size(r_2_flatten, 1) > 0 && size(r_1, 1) <= num_nurses
+        candidates = []
+        for (i, patient_id) in enumerate(r_2_flatten)
+            insertions = []
+            if size(current_route, 1) == 0
+                time = travel_time_table(1, patient_id+1)
+                push!(insertions,  (travel_time_table(1, patient_id+1), 1, patient_id, i))
+            else
+                for j in 1:size(current_route, 1) # Look at all insertions
+                    insert!(current_route, j, patient_id)
+                    objective_time, time_violation, demand, return_time = calculate_cost(current_route, patients, travel_time_table) # Maybe should allow infeasible here?
+                    deleteat!(current_route, j)
+                    if time_violation || demand > nurse_cap || return_time > latest_return # Insertion is only feasible if all hard constraints are satisfied.
+                        continue
+                    else
+                        push!(insertions,  (objective_time, j, patient_id, i))
+                    end
+                end
+            end
+            if size(insertions, 1) == 0 # No feasible insertions
+                if size(r_1, 1) == num_nurses
+                    break
+                else
+                    if current_route_id == size(r_1, 1)
+                        push!(r_1, [])
+                    end
+                    current_route_id += 1
+                    current_route = routes[current_route_id]
+                end
+            else
+                # Choose stochastically from the best 3 insertions. Could add preference based on how good the fitness is...
+                sort!(insertions, by=x->x[1])
+                insertion = insertions[min(size(insertions, 1), rand(1:3))]
+                insert!(current_route, insertion[2], insertion[3])
+                deleteat!(r_2_flatten, insertion[4])
+            end
+        end
+        
+    end
+    
+    # Now to deal with all the unassigned patients using the nearest neighbor heurisitic.
     # TODO:
-    # Remove patients from p_1 routes
-    # This can be based on criteria such as wait time, distance to neighbors within the route, and/or just random
-
-    # Rebuilding using a modified Solomon sequential insertion heuristic
-
     # Child inherits leftover "diminished" routes from P1
     # Unassigned customers are inserted into a new route using the Nearest Neighbor heuristic.
 
 end
+
+function delete_at_indices!(arr::AbstractVector, indices_to_delete::AbstractVector{Int})
+    # Sort the indices in reverse order to avoid index shifting issues
+    sorted_indices = sort(indices_to_delete, rev=true)
+
+    # Delete elements at the specified indices
+    for index in sorted_indices
+        deleteat!(arr, index)
+    end
+
+    return arr
+end
+
 
 end

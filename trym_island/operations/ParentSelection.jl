@@ -14,6 +14,7 @@ using ..Operations
 
 function select_parents(population)
     fitness_probs = sigma_select(population, 2)
+    println(fitness_probs)
     return roulette_wheel_select(fitness_probs, population.lambda)
     # return stochastic_universal_sampling(population, fitness_scores, num_parents)
 end

@@ -38,8 +38,11 @@ function solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients,
         candidates = []
         for (i, patient_id) in enumerate(patient_list)
             best_insertion = (typemax(Int32), -1)
-            if size(current_route, 1) == 0
-                best_insertion = (travel_time_table(1, patient_id+1), 1, patient_id, i)
+            if size(current_route, 1) == 0 
+                time = travel_time_table(1, patient_id+1)
+                if time < best_insertion[1]
+                    best_insertion = (travel_time_table(1, patient_id+1), 1, patient_id, i)
+                end
             else
                 for j in 1:size(current_route, 1) # Look at all insertions
                     insert!(current_route, j, patient_id)
