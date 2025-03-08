@@ -18,7 +18,7 @@ module Operations
     export tournament_select, select_parents
     export pop_swap_mut!, pop_insert_mut!, pop_scramble_mut!, pop_scramble_seg_mut!, route_mutation!, inversion_mut!, EE_M, EE_M!
     export get_centroid, get_all_centroids, get_route_neighborhood, first_apply_neighbor_insert!, best_apply_neighbor_insert!
-    export fitness, evaluate, route_distance
-    export IB_X
+    export fitness, evaluate, route_distance, distance
+    export IB_X, perform_crossover!
 
 end

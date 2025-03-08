@@ -28,19 +28,22 @@ end
 
 function run()
     NUM_GEN = 10
+    cross_rate = 1.0
     pop_size = 10
-    growth_size = 2
-    time_pen = 1
+    growth_size = 1
+    time_pen = 2
     num_time_pen = 1.5
+    num_patients = size(patients, 1)
 
     # Init pop
-    init_pop = @time init_populations(patients, size(patients, 1), depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap, depot.return_time)
+    init_pop = @time init_populations(patients, num_patients, depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap, depot.return_time)
 
-    println(init_pop[1][1])
-    println(IB_X(time_matrix, patients, init_pop[1][1], init_pop[1][2], depot, 5))
-    
-    throw(Error(""))
-
+    # for pop in init_pop
+    #     for gene in pop
+    #         println(gene)
+    #     end
+    # end
+    # throw(Error())
     populations = []
     for (i, pop) in enumerate(init_pop)
         popu = []
@@ -51,9 +54,12 @@ function run()
             gene_r = individual
             sequence = collect(Iterators.flatten(gene_r))
             fitness_val, time_violation = fitness(i, gene_r, patients, time_matrix, time_pen, num_time_pen) # Use the 
+            if time_violation
+                println("Time violation?!")
+            end
             if fitness_val < best_fitness && !time_violation
-                println(time_violation)
                 best_id = j
+                best_fitness = fitness_val
             end
             push!(fitness_array, fitness_val)
             push!(popu, Gene(
@@ -71,7 +77,7 @@ function run()
         println(pop[best_id])
         push!(populations, ModelPop(
             i,
-            size(patients, 1),
+            num_patients,
             popu,
             fitness_array,
             best_id,
@@ -87,19 +93,47 @@ function run()
     # Evolutionary loop
     while current_gen < NUM_GEN
         for (i, pop) in enumerate(populations)  # Embarrasingly Parallelizable Here. So, try and do something with that... add Threads.@threads
-            for i in 1:growth_size
+            # Parent Selection:
+            parent_ids = select_parents(pop) # Try first with roulette and then stochastic universal sampling
                 
-                # Parent Selection:
-                parent_ids = select_parents(pop)
-                # Try first with roulette and then stochastic universal sampling
-                
-                # Handle different islands using the pop_id under the ModelPop datatype
+            # Recombination and mutation based on which pop it is...
+            perform_crossover!(parent_ids, pop, patients, num_patients, time_matrix, depot, cross_rate, time_pen, num_time_pen) # Need to improve this.
 
-                # Recombination and mutation based on which pop it is...
-            
+            # TODO: implement mutation
+            for individual in pop.genes
+                EE_M!(individual,  patients, time_matrix)
             end
+
+            # Combine children and parents
+            # Remove n_p individuals using eval
+            # Collect fitness array again
+
+
             # Survivor selection:
-            # Remove the n_p worst from the pop using eval.
+            # Remove the n_p worst from the pop using eval. (Currently, I am using the fitness function instead of eval...)
+            while size(pop.genes, 1) > pop_size
+                worst_gene_id = argmax(pop.fitness_array)
+                deleteat!(pop.genes, worst_gene_id)
+                deleteat!(pop.fitness_array, worst_gene_id)
+            end
+           
+            println("-------------")
+            println("Pop 1:")
+            println("Best fitness:")
+            println(maximum(populations[1].fitness_array))
+            println("Average fitness:")
+            println(sum(populations[1].fitness_array)/size(populations[1].fitness_array, 1))
+            println("Worst fitness:")
+            println(minimum(populations[1].fitness_array))
+            println("Pop 2:")
+            println("Best fitness:")
+            println(maximum(populations[2].fitness_array))
+            println("Average fitness:")
+            println(sum(populations[2].fitness_array)/size(populations[2].fitness_array, 1))
+            println("Worst fitness:")
+            println(minimum(populations[2].fitness_array))
+            println("-------------")
+
         end
         
         # Check if pop_2 contains new best feasible solution
@@ -108,6 +142,14 @@ function run()
         # Re-order the best solution to try and make it better.
 
         current_gen += 1
+    end
+
+    # Use RC_M to try and locally improve the best solution.
+    for pop in populations
+        println(pop.genes[rand(1:size(pop.genes, 1))].gene_r)
+        println(pop.pop_id)
+        println(minimum(pop.fitness_array))
+        println(pop.genes[argmin(pop.fitness_array)].gene_r)
     end
     
 end

@@ -9,7 +9,8 @@ using .Models, .Operations
 export Models, Operations
 export Gene, ModelPop
 export init_populations, calculate_cost, select_parents
-export IB_X
+export perform_crossover!
+export EE_M!
 export fitness
 
 

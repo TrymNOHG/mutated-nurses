@@ -1,6 +1,6 @@
 module Fitness
 
-export pop_1_fitness, pop_2_fitness, evaluate, route_distance, fitness
+export pop_1_fitness, pop_2_fitness, evaluate, route_distance, fitness, distance
 
 function fitness(pop_id, gene_r, patients, travel_time_table, time_pen, num_time_pen)
     CV = 0

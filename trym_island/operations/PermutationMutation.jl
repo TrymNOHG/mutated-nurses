@@ -115,18 +115,22 @@ function EE_M!(individual, patients, travel_time_table) # ::Gene
 
     for (route_index, route) in enumerate(individual.gene_r)
         for (i, patient_id) in enumerate(route)
-            # Finds 2 closest tours based on minimum distance to centroids
+            # println(route)
             neighbors = get_route_neighborhood(centroids, route_index, patients[patient_id])
-            old_cost = calculate_cost(route, patients, travel_time_table)
+            # neighbors = get_route_neighborhood(10, centroids, route_index, patients[patient_id])
+            old_cost, _ = calculate_cost(route, patients, travel_time_table)
             deleteat!(route, i) 
-            new_cost = calculate_cost(route, patients, travel_time_table)
+            new_cost, _ = calculate_cost(route, patients, travel_time_table)
             removal_reward = new_cost - old_cost
-            is_better_solution = first_apply_neighbor_insert!(removal_reward, neighbors, routes, patient_id, patients, travel_time_table)
+            new_route, is_better_solution = first_apply_neighbor_insert!(removal_reward, neighbors, individual.gene_r, patient_id, patients, travel_time_table)
             if is_better_solution == false
-                insert!(route, patient_id, i) # No better position...
+                insert!(route, i, patient_id) # No better position...
+            else
+                return new_route
             end
         end
     end
+    return gene_r
 end
 
 # TODO:

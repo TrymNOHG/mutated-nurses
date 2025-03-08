@@ -1,43 +1,53 @@
 module Recombination
 
-export perform_crossover, order_1_crossover!, PMX!, gen_edge_table, TBX!, edge_3_crossover!, IB_X
+export perform_crossover!, order_1_crossover!, PMX!, gen_edge_table, TBX!, edge_3_crossover!, IB_X
 
 using ..Operations
+using ..Models
 
 
 import Random.shuffle!
 
-function perform_crossover(parents, num_patients, cross_rate)
+function perform_crossover!(parent_ids, population, patients, num_patients, travel_time_table, depot, cross_rate, time_pen, num_time_pen)
     """
     This function performs one-point cross-over on a list of parents. To increase
     the randomness associated with recombination, the parents list is shuffled before
     two parents are drawn.
     """
     current_index = 1
-    survivors = []
 
-    shuffle!(parents)
-    # println("Number of parents: ")
-    # println(size(parents, 1))
-    while current_index < size(parents, 1)
-        parent_1, parent_2 = parents[current_index:current_index+1]
+    shuffle!(parent_ids)
+    while current_index < size(parent_ids, 1)
+        parent_1, parent_2 = parent_ids[current_index:current_index+1]
+        parent_1 = population.genes[parent_1].gene_r
+        parent_2 = population.genes[parent_2].gene_r
         if rand() < cross_rate
+            child_gene = IB_X(travel_time_table, patients, parent_1, parent_2, depot, 5)
+            child = get_gene_from_2d_arr(population.pop_id, child_gene, patients, travel_time_table, time_pen, num_time_pen)
+            push!(population.genes, child)
+            push!(population.fitness_array, child.fitness)
+            # println("child1.fitness")
+            # println(child.fitness)
+            child_gene_2 = IB_X(travel_time_table, patients, parent_2, parent_1, depot, 5)
+            child_2 = get_gene_from_2d_arr(population.pop_id, child_gene_2, patients, travel_time_table, time_pen, num_time_pen)
+            push!(population.genes, child_2)
+            push!(population.fitness_array, child_2.fitness)
+            # println("child2.fitness")
+            # println(child_2.fitness)
             # TBX!(parent_1, parent_2, survivors, num_patients)
             # TBX!(parent_2, parent_1, survivors, num_patients)
             # PMX!(parent_1, parent_2, survivors, num_patients)
             # PMX!(parent_1, parent_2, survivors, num_patients)
-            edge_3_crossover!(parent_1, parent_2, survivors, num_patients)
-            edge_3_crossover!(parent_2, parent_1, survivors, num_patients)
+            # edge_3_crossover!(parent_1, parent_2, survivors, num_patients)
+            # edge_3_crossover!(parent_2, parent_1, survivors, num_patients)
             # order_1_crossover!(parent_1, parent_2, survivors, num_patients)
             # order_1_crossover!(parent_2, parent_1, survivors, num_patients)
         else
-            push!(survivors, parent_1)
+            push!(population.genes, parent_1)
             push!(survivors, parent_2)
         end
         current_index += 2
     end
-
-    return survivors
 end
 
 # TODO: test differnet crossover methods
@@ -264,7 +274,7 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
     end
     
     for _ in 1:k
-        max_intra_route_dist = argmin(distances) # Max distance between children
+        max_intra_route_dist = argmax(distances) # Max distance between children
         push!(r_1, distances[max_intra_route_dist][2])
         deleteat!(distances, max_intra_route_dist)
     end
@@ -410,7 +420,7 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
             else
                 # Choose stochastically from the best 3 insertions. Could add preference based on how good the fitness is...
                 sort!(insertions, by=x->x[1])
-                insertion = insertions[min(size(insertions, 1), rand(1:3))]
+                insertion = insertions[min(size(insertions, 1), rand(1:5))]
                 insert!(current_route, insertion[2], insertion[3])
                 deleteat!(r_2_flatten, insertion[4])
             end
@@ -486,6 +496,21 @@ function delete_at_indices!(arr::AbstractVector, indices_to_delete::AbstractVect
     end
 
     return arr
+end
+
+function get_gene_from_2d_arr(pop_id, arr, patients, travel_time_table, time_pen, num_time_pen)
+    # fitness_val, violates = fitness(pop_id, arr, patients, travel_time_table, time_pen, num_time_pen)
+    fitness_val = distance(arr, travel_time_table)
+    return Gene(
+                collect(Iterators.flatten(arr)),
+                fitness_val,
+                arr,
+                [],
+                [],
+                [],
+                [],
+                []
+    )
 end
 
 

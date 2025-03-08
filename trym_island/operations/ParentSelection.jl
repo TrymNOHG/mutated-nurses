@@ -14,7 +14,6 @@ using ..Operations
 
 function select_parents(population)
     fitness_probs = sigma_select(population, 2)
-    println(fitness_probs)
     return roulette_wheel_select(fitness_probs, population.lambda)
     # return stochastic_universal_sampling(population, fitness_scores, num_parents)
 end
@@ -59,7 +58,6 @@ function pop_fitness(population::Vector{T}, travel_time_table, patients, depot, 
     return fitness_scores, total_fitness
 end
 
-# Is it assumed that the best solution has already been updated in the pop before this point, as well as the fitness scores calculated and updated.
 function sigma_select(population::ModelPop, c=2)
     output_file = population.log_dir * "/temp.csv"
     fitness_scores = population.fitness_array[1:end] # Create a copy
@@ -67,9 +65,13 @@ function sigma_select(population::ModelPop, c=2)
     for fitness in fitness_scores
         total_fitness += fitness
     end
-
+    # println(fitness_scores)
+    # println("Mean")
     mean = total_fitness / size(fitness_scores, 1)
+    # println(mean)
+    # println("STD")
     std = sqrt(sum([(fitness - mean)^2 for fitness in fitness_scores]) / size(fitness_scores, 1))
+    # println(std)
 
     best_solution = [minimum(fitness_scores), population.genes[argmin(fitness_scores)].gene_r] # CHANGE BASED ON MAXIMIZATION OR MINIMIZATION PROBLEM!!!
 
@@ -93,7 +95,6 @@ function sigma_select(population::ModelPop, c=2)
 end
 
 function roulette_wheel_select(fitness_scores, num_parents)
-    println(fitness_scores)
     parent_ids = []
     while num_parents > 0
         rand_num = rand()
