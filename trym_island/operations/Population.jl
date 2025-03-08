@@ -61,7 +61,7 @@ function solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients,
                 push!(candidates, best_insertion)
             end
         end
-        if size(candidates, 1) == 0 || rand() < 0.3
+        if size(candidates, 1) == 0 || rand() < 0.15
             if size(routes, 1) == num_nurses
                 break
             else
@@ -74,6 +74,9 @@ function solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients,
             deleteat!(patient_list, candidates[1][4])
         end
     end
+    # println(patient_list)
+    # println(routes)
+    # throw(Error(" "))
 
     # Hopefully, it does not get to this point...
     if size(patient_list, 1) > 0

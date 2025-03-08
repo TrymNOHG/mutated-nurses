@@ -252,7 +252,7 @@ function TBX!(parent_1, parent_2, survivors, num_patients)
 
 end
 
-function IB_X(travel_time_table, patients, parent_1, parent_2, num_nurses, k=2)
+function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
     unassigned_patients = Set{Int32}()
     r_1 = [] # Will contain k routes from parent_1
     distances = []
@@ -276,33 +276,69 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, num_nurses, k=2)
     # The set of unassigned patients is the set_of_patients\patients_in_chosen_routes
 
     # Get the centroids of the selected routes
-    parent_1_centroids = []
+    parent_1_centroids = [get_centroid(route, patients) for route in r_1]
 
     parent_2_centroids = get_all_centroids(parent_2, patients)
 
-    avg_centroid_dist = []
-    for p2_centroid in parent_2_centroids
-        sum_distance = 0
-        for p1_centroid in parent_1_centroids
-            sum_distance += sqrt((p2_centroid[1] - p1_centroid[1])^2 + (p2_centroid[2] - p1_centroid[2])^2)
+    ### MINIMIZING LOCAL INTER-CENTROID DISTANCE ###
+    # Essentially, include parent 2 routes that are the closest to r_1s' centroids, individually.
+
+    r_2 = []
+    r_2_added = [] # Containing indices
+    for p1_centroid in parent_1_centroids
+        inter_dist = []
+        for (j, p2_centroid) in enumerate(parent_2_centroids)
+            push!(inter_dist, (sqrt((p2_centroid[1] - p1_centroid[1])^2 + (p2_centroid[2] - p1_centroid[2])^2), j))
         end
-        push!(avg_centroid_dist, (sum_distance / 2, p2_centroid[3])) # Index refers to route from parent_2
-    end
-
-    # I want to select k routes from parent_2 that are the closest to the routes in parent_1_centroids.
-    # I.e., least average distance between centroids
-
-    r_2 = [] # Will contain k routes from parent_2 that are in the neighborhood of r_1
-    for _ in 1:k
-        min_inter_route_dist = argmin(avg_centroid_dist) # min distance between children
-        push!(r_2, parent_2[avg_centroid_dist[min_inter_route_dist][2]])
-        deleteat!(avg_centroid_dist, min_inter_route_dist)
+        sort!(inter_dist, rev=true)
+        is_added = false
+        while !is_added
+            parent_2_route_id = inter_dist[end][2]
+            if parent_2_route_id in r_2_added
+                pop!(inter_dist)
+            else
+                push!(r_2, parent_2[parent_2_route_id])
+                push!(r_2_added, parent_2_route_id)
+                is_added = true
+            end
+        end
     end
 
     unassigned_patients_2 = Set{Int32}()
-    for remain_route in avg_centroid_dist
-        union!(unassigned_patients_2, parent_2[remain_route[2]]) # This adds all the patients not included in parent 1's route.
+
+    for i in size(parent_2, 1)
+        if i ∉ r_2_added
+            union!(unassigned_patients_2, parent_2[i])
+        end
     end
+
+    ######################################################
+
+    ### MINIMIZING AVERAGE INTER-CENTROID DISTANCE ###
+
+    # avg_centroid_dist = []
+    # for p2_centroid in parent_2_centroids
+    #     sum_distance = 0
+    #     for p1_centroid in parent_1_centroids
+    #         sum_distance += sqrt((p2_centroid[1] - p1_centroid[1])^2 + (p2_centroid[2] - p1_centroid[2])^2)
+    #     end
+    #     push!(avg_centroid_dist, (sum_distance / k, p2_centroid[3])) # Index refers to route from parent_2
+    # end
+
+    # # I want to select k routes from parent_2 that are the closest to the routes in parent_1_centroids.
+    # # I.e., least average distance between centroids
+
+    # r_2 = [] # Will contain k routes from parent_2 that are in the neighborhood of r_1
+    # for _ in 1:k
+    #     min_inter_route_dist = argmin(avg_centroid_dist) # min distance between children
+    #     push!(r_2, parent_2[avg_centroid_dist[min_inter_route_dist][2]])
+    #     deleteat!(avg_centroid_dist, min_inter_route_dist)
+    # end
+
+    ######################################################
+
+
+   
 
     r_1_flatten = collect(Iterators.flatten(r_1))
     r_2_flatten = collect(Iterators.flatten(r_2))
@@ -311,6 +347,10 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, num_nurses, k=2)
     unassigned_patients_2 = setdiff(unassigned_patients_2, Set{Int32}(r_1_flatten))
 
     unassigned = union(unassigned_patients, unassigned_patients_2)
+
+    println(unassigned)
+    println(r_1)
+    println(r_2)
 
     # Random removal first, then try based on largest travel time between consecutive patients, (since we are trying to minimize total travel time and not total time, wait time is not a great heuristic).
 
@@ -337,7 +377,7 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, num_nurses, k=2)
     
     current_route_id = 1
     current_route = r_1[current_route_id]
-    while size(r_2_flatten, 1) > 0 && size(r_1, 1) <= num_nurses
+    while size(r_2_flatten, 1) > 0 && size(r_1, 1) <= depot.num_nurses
         candidates = []
         for (i, patient_id) in enumerate(r_2_flatten)
             insertions = []
@@ -349,7 +389,7 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, num_nurses, k=2)
                     insert!(current_route, j, patient_id)
                     objective_time, time_violation, demand, return_time = calculate_cost(current_route, patients, travel_time_table) # Maybe should allow infeasible here?
                     deleteat!(current_route, j)
-                    if time_violation || demand > nurse_cap || return_time > latest_return # Insertion is only feasible if all hard constraints are satisfied.
+                    if time_violation || demand > depot.nurse_cap || return_time > depot.return_time # Insertion is only feasible if all hard constraints are satisfied.
                         continue
                     else
                         push!(insertions,  (objective_time, j, patient_id, i))
@@ -357,14 +397,14 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, num_nurses, k=2)
                 end
             end
             if size(insertions, 1) == 0 # No feasible insertions
-                if size(r_1, 1) == num_nurses
+                if size(r_1, 1) == depot.num_nurses
                     break
                 else
                     if current_route_id == size(r_1, 1)
                         push!(r_1, [])
                     end
                     current_route_id += 1
-                    current_route = routes[current_route_id]
+                    current_route = r_1[current_route_id]
                 end
             else
                 # Choose stochastically from the best 3 insertions. Could add preference based on how good the fitness is...
@@ -374,14 +414,35 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, num_nurses, k=2)
                 deleteat!(r_2_flatten, insertion[4])
             end
         end
-        
     end
-    
+
+    union!(unassigned, r_2_flatten)
+
+    nearest_neighbor_insert!(r_1, unassigned, patients, time_matrix)
+
     # Now to deal with all the unassigned patients using the nearest neighbor heurisitic.
     # TODO:
     # Child inherits leftover "diminished" routes from P1
     # Unassigned customers are inserted into a new route using the Nearest Neighbor heuristic.
 
+end
+
+function nearest_neighbor_insert!(r_1, unassigned, patients, time_matrix)
+    """
+    The guiding heuristic used to insert is the distance from an unassigned patient to its nearest patient, and using the respective route in r_1.
+    """
+    for patient in unassigned
+        distances = []
+        for (i, route) in enumerate(r_1)
+            for other_patient in route
+                push!(distances, (time_matrix(patient, other_patient), i))
+            end
+        end
+
+        route_to_use = distances[argmin(distances)][2]
+        
+
+    end
 end
 
 function delete_at_indices!(arr::AbstractVector, indices_to_delete::AbstractVector{Int})
