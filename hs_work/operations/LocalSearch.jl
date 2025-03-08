@@ -1,5 +1,6 @@
 module LocalSearch
 using ..Models, ..Split
+using Random
 
 export local_search!
 
@@ -16,7 +17,7 @@ function compute_true_duration(route_segment::Vector{Int}, depot::Depot, patient
 
         # Customer time window constraints
         start_time = patients[customer].start_time
-        end_time = patients[customer].end_time
+        end_time = patients[customer].end_time - patients[customer].care_time
 
         # Time warp (late arrival)
         if arrival_time > end_time
@@ -86,22 +87,44 @@ function local_search!(gene::Gene, depot::Depot, patients::Vector{Patient}, pena
     neighbors = compute_neighbors(gene, patients, tau, gamma_wt, gamma_tw,time_matrix)
     
     # 2. Process routes in two phases
+    # Phase 1 : Local search for new routes
     improved = true
     while improved
         improved = false
-        
-        # Phase 1: Intra-route 2-OPT optimization
-        for route in gene.gene_r
+        # improved |= n1_moves!(gene, neighbors, depot, patients, penaltyDuration, penaltyCap, penaltyTW, time_matrix, gene.new_routes) 
+        # improved |= n2_moves!(gene, neighbors, depot, patients, penaltyDuration, penaltyCap, penaltyTW, time_matrix, gene.new_routes) 
+        for route_idx in gene.new_routes
+            route = gene.gene_r[route_idx]
             improved |= apply_2opt!(gene, route, neighbors, patients,depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
         end
-        
-        # Phase 2: Inter-route moves
+        # improved |= apply_inter_route_moves!(gene, neighbors, depot, patients, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
+    end
+
+    # Phase 2 local search in old routes
+    improved = true
+    while improved
+        improved = false
+        route_indicies = Vector{Int}()
+        for indc in 1:length(gene.gene_r)
+            if indc in gene.new_routes
+                continue
+            else
+                push!(route_indicies, indc)
+            end
+        end
+        improved |= n1_moves!(gene, neighbors, depot, patients, penaltyDuration, penaltyCap, penaltyTW, time_matrix, route_indicies) 
+        for route_idx = 1:length(gene.gene_r)
+            if route_idx in gene.new_routes
+                continue
+            else
+                route = gene.gene_r[route_idx]
+                improved |= apply_2opt!(gene, route, neighbors, patients,depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
+            end
+        end
         improved |= apply_inter_route_moves!(gene, neighbors, depot, patients, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
     end
-    
-    # Update fitness after local search
-    # gene.fitness = splitbellman(gene, depot, patients, length(gene.sequence),
-    #                penaltyCapacity, depot.return_time, penaltyDuration, penaltyTW, time_matrix)
+
+
     cost_r = 0.0
     for route in gene.gene_r
         cost_r += route_cost(route, gene, patients, depot.return_time, penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix)
@@ -117,7 +140,6 @@ function compute_neighbors(gene::Gene, patients::Vector{Patient} , tau::Int,gamm
         gamma_values = []
         for v in sequence
             u == v && continue  # Skip self-pairs
-            
             # Calculate symmetric gamma_hat
             gamma_uv = compute_correlation(u, v, patients,gamma_wt, gamma_tw, time_matrix)
             gamma_vu = compute_correlation(v, u, patients,gamma_wt, gamma_tw, time_matrix)
@@ -169,23 +191,69 @@ function apply_2opt!(gene::Gene, route::Vector{Int}, neighbors, patients,depot::
             end
         end
     end
-    # if improved
-    #     println("Improoved")
-    # end
     improved
 end
 
-# function apply_inter_route_moves!(gene, neighbors, depot, patients, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
-#     improved = false
-#     routes = gene.gene_r
+function n1_moves!(gene::Gene, neighbors, depot::Depot, patients::Vector{Patient}, penaltyDuration, penaltyCap, penaltyTW, time_matrix, route_indicies::Vector{Int}) # N1 is swap and relocate, Swap two disjoint visit sequences,  containing between 0 and 2 visits. Combine this with the reversal of one or both sequences.
+    improved = false
+    all_routes = gene.gene_r
+    random_r1_array = shuffle(route_indicies)
+    random_r2_array = shuffle(route_indicies)
+    r_c_2 = factorial(big(length(all_routes))) / (2 * factorial(big(length(all_routes) - 2)))
+    routes_to_explore = 0.05*r_c_2
+    routes_explored = 0
+    for r1 in random_r1_array
+        for r2 in random_r2_array
+                (new_r1, new_r2), swapped = apply_swap_and_relocate(all_routes[r1], all_routes[r2], neighbors, patients, gene, depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
+                if swapped
+                    gene.gene_r[r1] = new_r1
+                    gene.gene_r[r2] = new_r2
+                    improved = true
+                end
+                routes_explored +=1
+                if routes_explored > routes_to_explore
+                    break
+                end
+        end
+    end
+    improved
+end
+
+# function apply_swap_and_relocate(route1::Vector{Int}, route2::Vector{Int}, neighbors, patients::Vector{Patient}, gene::Gene, depot::Depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
+#     best_delta = Inf
+#     best_move = nothing
     
-#     for r1 in 1:length(routes), r2 in r1+1:length(routes)
-#         # Check all pairs of routes
-#         improved |= apply_swap_move!(routes[r1], routes[r2], neighbors, patients, gene, depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
-#         # improved |= apply_relocate_move!(routes[r1], routes[r2], neighbors, patients, gene, depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
+#     # Consider all possible subsequence swaps
+#     for i in 1:length(route1), j in 1:length(route2)
+#         route1[i] ∈ neighbors[route2[j]] || continue
+        
+#         # Calculate cost difference
+#         original_cost = route_cost(route1, gene, patients, depot.return_time, penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix) +
+#                         route_cost(route2, gene, patients, depot.return_time, penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix)
+        
+#         # Create new routes
+#         new_route1 = [route1[1:i-1]; route2[j:end]]
+#         new_route2 = [route2[1:j-1]; route1[i:end]]
+        
+#         # Check feasibility
+#         new_cost = route_cost(new_route1, gene, patients, depot.return_time, penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix) +
+#                    route_cost(new_route2, gene, patients, depot.return_time, penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix)
+        
+#         if new_cost < original_cost
+#             delta = new_cost - original_cost
+#             if delta < best_delta
+#                 best_delta = delta
+#                 best_move = (new_route1, new_route2)
+#             end
+#         end
 #     end
     
-#     improved
+#     # Return new routes if improvement found
+#     if best_move !== nothing
+#         return (best_move[1], best_move[2]), true
+#     else
+#         return (route1, route2), false
+#     end
 # end
 
 function apply_inter_route_moves!(gene, neighbors, depot, patients, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
@@ -194,7 +262,7 @@ function apply_inter_route_moves!(gene, neighbors, depot, patients, penaltyDurat
     
     for r1 in 1:length(routes), r2 in r1+1:length(routes)
         # Swap move
-        (new_r1, new_r2), swapped = apply_swap_move(routes[r1], routes[r2], neighbors, patients, gene, depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
+        (new_r1, new_r2), swapped = apply_swap_and_relocate(routes[r1], routes[r2], neighbors, patients, gene, depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
         if swapped
             gene.gene_r[r1] = new_r1
             gene.gene_r[r2] = new_r2
@@ -215,7 +283,7 @@ function apply_inter_route_moves!(gene, neighbors, depot, patients, penaltyDurat
     improved
 end
 
-function apply_swap_move(route1::Vector{Int}, route2::Vector{Int}, neighbors, patients::Vector{Patient}, gene::Gene, depot::Depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
+function apply_swap_and_relocate(route1::Vector{Int}, route2::Vector{Int}, neighbors, patients::Vector{Patient}, gene::Gene, depot::Depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
     best_delta = Inf
     best_move = nothing
     
@@ -230,8 +298,6 @@ function apply_swap_move(route1::Vector{Int}, route2::Vector{Int}, neighbors, pa
         # Create new routes
         new_route1 = [route1[1:i-1]; route2[j:end]]
         new_route2 = [route2[1:j-1]; route1[i:end]]
-        # new_route1 = copy(route1); new_route2 = copy(route2)
-        # new_route1[i], new_route2[j] = new_route2[j], new_route1[i]
         
         # Check feasibility
         new_cost = route_cost(new_route1, gene, patients, depot.return_time, penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix) +
@@ -288,76 +354,5 @@ function apply_relocate_move(source::Vector{Int}, target::Vector{Int}, neighbors
     end
 end
 
-
-# function apply_swap_move!(route1::Vector{Int}, route2::Vector{Int}, neighbors, patients::Vector{Patient}, gene::Gene, depot::Depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
-#     best_delta = Inf
-#     best_move = nothing
-    
-#     # Consider all possible subsequence swaps
-#     for i in 1:length(route1), j in 1:length(route2)
-#         # Only consider neighbor pairs
-#         route1[i] ∈ neighbors[route2[j]] || continue
-        
-        
-
-#         # Calculate cost difference
-#         original_cost = route_cost(route1, gene, patients,depot.return_time,penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix ) + route_cost(route2, gene, patients,depot.return_time,penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix )
-        
-#         # Create new routes
-#         new_route1 = [route1[1:i-1]; route2[j:end]]
-#         new_route2 = [route2[1:j-1]; route1[i:end]]
-        
-#         # Check feasibility
-#         new_cost = route_cost(new_route1, gene, patients,depot.return_time,penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix ) + route_cost(new_route2, gene, patients,depot.return_time,penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix )
-#         if (new_cost < original_cost)
-#             delta = new_cost - original_cost
-#             if delta < best_delta
-#                 best_delta = delta
-#                 best_move = (i, j, new_route1, new_route2)
-#             end
-#         end
-#     end
-    
-#     # Apply best found move
-#     if best_move !== nothing
-#         route1[:], route2[:] = best_move[3], best_move[4]
-#         return true
-#     end
-#     return false
-# end
-
-# function apply_relocate_move!(source, target, neighbors, patients::Vector{Patient},gene::Gene, depot::Depot, penaltyDuration, penaltyCap, penaltyTW, time_matrix)
-#     best_delta = Inf
-#     best_move = nothing
-    
-#     for i in 1:length(source), j in 1:length(target)+1
-#         # Check neighbor correlation
-#         source[i] ∈ neighbors[target[j]] || continue
-        
-#         # Create new routes
-#         new_source = deleteat!(copy(source), i)
-#         new_target = insert!(copy(target), j, source[i])
-        
-#         # Check feasibility and cost
-#         new_cost = route_cost(new_source, gene, patients,depot.return_time,penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix ) + route_cost(new_target, gene, patients,depot.return_time,penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix )
-#         original_cost = route_cost(source, gene, patients,depot.return_time,penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix ) + route_cost(target, gene, patients,depot.return_time,penaltyDuration, penaltyCap, penaltyTW, depot, time_matrix )
-        
-#         if (new_cost < original_cost)
-#             delta = new_cost - original_cost
-#             if delta < best_delta
-#                 best_delta = delta
-#                 best_move = (new_source, new_target)
-#             end
-#         end
-#     end
-    
-#     # Apply best move
-#     if best_move !== nothing
-#         source[:] = best_move[1]
-#         target[:] = best_move[2]
-#         return true
-#     end
-#     return false
-# end
 
 end
