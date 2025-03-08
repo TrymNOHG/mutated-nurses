@@ -264,7 +264,7 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
     end
     
     for _ in 1:k
-        max_intra_route_dist = argmax(distances) # Max distance between children
+        max_intra_route_dist = argmin(distances) # Max distance between children
         push!(r_1, distances[max_intra_route_dist][2])
         deleteat!(distances, max_intra_route_dist)
     end
@@ -342,15 +342,16 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
 
     r_1_flatten = collect(Iterators.flatten(r_1))
     r_2_flatten = collect(Iterators.flatten(r_2))
+    r_2_flatten = setdiff(r_2_flatten, r_1_flatten)
 
     unassigned_patients = setdiff(unassigned_patients, Set{Int32}(r_2_flatten))
     unassigned_patients_2 = setdiff(unassigned_patients_2, Set{Int32}(r_1_flatten))
 
     unassigned = union(unassigned_patients, unassigned_patients_2)
 
-    println(unassigned)
-    println(r_1)
-    println(r_2)
+    # println(unassigned)
+    # println(r_1)
+    # println(r_2)
 
     # Random removal first, then try based on largest travel time between consecutive patients, (since we are trying to minimize total travel time and not total time, wait time is not a great heuristic).
 
@@ -416,33 +417,63 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
         end
     end
 
+    # println("Hi")
+    # println(length(Set(collect(Iterators.flatten(r_1)))))
+    # println(sort(collect(Iterators.flatten(r_1))))
     union!(unassigned, r_2_flatten)
-
-    nearest_neighbor_insert!(r_1, unassigned, patients, time_matrix)
-
-    # Now to deal with all the unassigned patients using the nearest neighbor heurisitic.
-    # TODO:
-    # Child inherits leftover "diminished" routes from P1
-    # Unassigned customers are inserted into a new route using the Nearest Neighbor heuristic.
+    # println(sort(collect(unassigned)))
+    # println()
+    
+    violations = nearest_neighbor_insert!(r_1, unassigned, patients, travel_time_table, depot.nurse_cap, depot.return_time, depot.num_nurses)
+    return violations ? parent_1 : r_1
 
 end
 
-function nearest_neighbor_insert!(r_1, unassigned, patients, time_matrix)
+function nearest_neighbor_insert!(r_1, unassigned, patients, travel_time_table, nurse_cap, latest_return, num_nurses)
     """
     The guiding heuristic used to insert is the distance from an unassigned patient to its nearest patient, and using the respective route in r_1.
     """
+    violation_patients = false
     for patient in unassigned
+        # println(patient)
         distances = []
         for (i, route) in enumerate(r_1)
             for other_patient in route
-                push!(distances, (time_matrix(patient, other_patient), i))
+                push!(distances, (travel_time_table(patient+1, other_patient+1), i))
             end
         end
 
-        route_to_use = distances[argmin(distances)][2]
-        
-
+        sort!(distances, by=x->x[2], rev=true)
+        inserted = false
+        while size(distances, 1) > 0
+            route_to_use = r_1[pop!(distances)[2]]
+            best_insertion = (typemax(Int32), -1)
+            for i in 1:size(route_to_use, 1)
+                insert!(route_to_use, i, patient)
+                objective_time, time_violation, demand, return_time = calculate_cost(route_to_use, patients, travel_time_table) # Maybe should allow infeasible here?
+                deleteat!(route_to_use, i)
+                if time_violation || demand > nurse_cap || return_time > latest_return # Insertion is only feasible if all hard constraints are satisfied.
+                    continue
+                else
+                    if objective_time < best_insertion[1]
+                        best_insertion = (objective_time, i)
+                    end
+                end
+            end
+            if best_insertion[1] != typemax(Int32)
+                insert!(route_to_use, best_insertion[2], patient)
+                inserted = true
+                break
+            end
+        end
+        if !inserted && size(r_1, 1) < num_nurses
+            push!(r_1, [patient])
+        elseif !inserted
+            violation_patients = true
+        end
+            
     end
+    return violation_patients
 end
 
 function delete_at_indices!(arr::AbstractVector, indices_to_delete::AbstractVector{Int})

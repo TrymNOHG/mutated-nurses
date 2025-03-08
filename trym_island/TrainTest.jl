@@ -36,7 +36,8 @@ function run()
     # Init pop
     init_pop = @time init_populations(patients, size(patients, 1), depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap, depot.return_time)
 
-    IB_X(time_matrix, patients, init_pop[1][1], init_pop[1][2], depot, 2)
+    println(init_pop[1][1])
+    println(IB_X(time_matrix, patients, init_pop[1][1], init_pop[1][2], depot, 5))
     
     throw(Error(""))
 
