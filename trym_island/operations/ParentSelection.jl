@@ -83,7 +83,7 @@ function sigma_select(population::ModelPop, c=2)
     end
 
     for i in 1:size(fitness_scores,1)
-        fitness_scores[i] = 1 - (fitness_scores[i] / new_fitness_tot)
+        fitness_scores[i] = fitness_scores[i] / new_fitness_tot
     end
 
     # Fix this function...
@@ -109,7 +109,7 @@ function roulette_wheel_select(fitness_scores, num_parents)
     return parent_ids
 end
 
-function stochastic_universal_sampling(population, fitness_scores, num_parents)
+function stochastic_universal_sampling(population, fitness_scores, num_parents) # Currently with replacement, allowing multiple of same parent
     parents = []
     init_rand_num = rand()
     prob_slice = 1/num_parents

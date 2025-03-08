@@ -16,7 +16,7 @@ using .NurseReader
 using CSV
 
 
-# extract_nurse_data("./data/test/test_2.json", "./data/bin/serialized_test_2.bin")
+# extract_nurse_data("./data/train/train_9.json", "./data/bin/serialized_train_9.bin")
 depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_train_9.bin")
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
@@ -30,9 +30,14 @@ function run()
     NUM_GEN = 10
     pop_size = 10
     growth_size = 2
+    time_pen = 1
+    num_time_pen = 1.5
 
     # Init pop
     init_pop = @time init_populations(patients, size(patients, 1), depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap, depot.return_time)
+    # IB_X(time_matrix, patients, init_pop[1][1], init_pop[1][2], 2)
+    
+    # throw(Error(""))
 
     populations = []
     for (i, pop) in enumerate(init_pop)
@@ -43,25 +48,15 @@ function run()
         for (j, individual) in enumerate(pop)
             gene_r = individual
             sequence = collect(Iterators.flatten(gene_r))
-            fitness = 0
-            has_time_violation = false
-            for route in individual
-                # Use the fitness function related to population.
-                # Add another field to the Gene struct for objective_fitness 
-                cost, time_violation, _, _ = calculate_cost(route, patients, time_matrix)
-                fitness += cost
-                if time_violation
-                    has_time_violation = true
-                end
-            end
-            fitness *= has_time_violation ? 5 : 1
-            if fitness < best_fitness
+            fitness_val, time_violation = fitness(i, gene_r, patients, time_matrix, time_pen, num_time_pen) # Use the 
+            if fitness_val < best_fitness && !time_violation
+                println(time_violation)
                 best_id = j
             end
-            push!(fitness_array, fitness)
+            push!(fitness_array, fitness_val)
             push!(popu, Gene(
                 sequence,
-                fitness,
+                fitness_val,
                 gene_r,
                 [],
                 [],
@@ -70,6 +65,8 @@ function run()
                 []
             ))
         end
+        println(best_fitness)
+        println(pop[best_id])
         push!(populations, ModelPop(
             i,
             size(patients, 1),
@@ -84,8 +81,6 @@ function run()
         ))
     end
 
-    println(populations[1])
-
     current_gen = 0 
     # Evolutionary loop
     while current_gen < NUM_GEN
@@ -94,14 +89,10 @@ function run()
                 
                 # Parent Selection:
                 parent_ids = select_parents(pop)
-                println(parent_ids)
-                throw(Error(""))
                 # Try first with roulette and then stochastic universal sampling
-                if i == 1
-                    # Handle island 1
-                else
-                    # Handle island 2
-                end
+                
+                # Handle different islands using the pop_id under the ModelPop datatype
+
                 # Recombination and mutation based on which pop it is...
             
             end

@@ -19,15 +19,16 @@ end
 function get_all_centroids(routes, patients)
     centroids = []
     depot_neighbor = false
-    for route in routes
+    for (i, route) in enumerate(routes)
         if size(route, 1) == 0
             if !depot_neighbor
-                push!(centroids, (0, 0))
+                push!(centroids, (0, 0, i))
                 depot_neighbor = true
             end
             continue
         end
-        push!(centroids, (get_centroid(route, patients)))
+        centroid = get_centroid(route, patients)
+        push!(centroids, (centroid[1], centroid[2], i))
     end
     return centroids
 end

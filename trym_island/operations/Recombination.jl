@@ -1,6 +1,9 @@
 module Recombination
 
-export perform_crossover, order_1_crossover!, PMX!, gen_edge_table, TBX!, edge_3_crossover!
+export perform_crossover, order_1_crossover!, PMX!, gen_edge_table, TBX!, edge_3_crossover!, IB_X
+
+using ..Operations
+
 
 import Random.shuffle!
 
@@ -246,6 +249,84 @@ function TBX!(parent_1, parent_2, survivors, num_patients)
 
     child = Solution(child_values, parent_1.indices)
     push!(survivors, child)
+
+end
+
+function IB_X(travel_time_table, patients, parent_1, parent_2, k=2)
+    println(parent_1)
+    unassigned_patients = Set{Int32}()
+    r_1 = [] # Will contain k routes from parent_1
+    distances = []
+    for (i, route) in enumerate(parent_1)
+        if size(route, 1) == 0
+            continue
+        end
+        push!(distances, (route_distance(route, travel_time_table)/size(route, 1), route))
+    end
+    
+    println("Distances")
+    println(distances)
+    for _ in 1:k
+        max_intra_route_dist = argmax(distances) # Max distance between children
+        push!(r_1, distances[max_intra_route_dist][2])
+        println(distances[max_intra_route_dist])
+        deleteat!(distances, max_intra_route_dist)
+    end
+
+    for remain_route in distances
+        union!(unassigned_patients, remain_route[2]) # This adds all the patients not included in parent 1's route.
+    end
+
+    # The set of unassigned patients is the set_of_patients\patients_in_chosen_routes
+
+    # Get the centroids of the selected routes
+    parent_1_centroids = []
+
+    parent_2_centroids = get_all_centroids(parent_2, patients)
+
+    avg_centroid_dist = []
+    for p2_centroid in parent_2_centroids
+        sum_distance = 0
+        for p1_centroid in parent_1_centroids
+            sum_distance += sqrt((p2_centroid[1] - p1_centroid[1])^2 + (p2_centroid[2] - p1_centroid[2])^2)
+        end
+        push!(avg_centroid_dist, (sum_distance / 2, p2_centroid[3])) # Index refers to route from parent_2
+    end
+
+    # I want to select k routes from parent_2 that are the closest to the routes in parent_1_centroids.
+    # I.e., least average distance between centroids
+
+    r_2 = [] # Will contain k routes from parent_2 that are in the neighborhood of r_1
+    for _ in 1:k
+        min_inter_route_dist = argmin(avg_centroid_dist) # min distance between children
+        push!(r_2, parent_2[avg_centroid_dist[min_inter_route_dist][2]])
+        deleteat!(avg_centroid_dist, min_inter_route_dist)
+    end
+
+    unassigned_patients_2 = Set{Int32}()
+    for remain_route in avg_centroid_dist
+        union!(unassigned_patients, parent_2[remain_route[2]]) # This adds all the patients not included in parent 1's route.
+    end
+
+    unassigned_patients = setdiff(unassigned_patients, intersect(Set{Int32}(collect(Iterators.flatten(r_2))), unassigned_patients))
+    unassigned_patients_2 = setdiff(unassigned_patients_2, intersect(Set{Int32}(collect(Iterators.flatten(r_1))), unassigned_patients_2))
+
+    unassigned = union(unassigned_patients, unassigned_patients_2)
+    println("Unassigned")
+    println(unassigned)
+    println("R1")
+    println(r_1)
+    println("R2")
+    println(r_2)
+
+    # TODO:
+    # Remove patients from p_1 routes
+    # This can be based on criteria such as wait time, distance to neighbors within the route, and/or just random
+
+    # Rebuilding using a modified Solomon sequential insertion heuristic
+
+    # Child inherits leftover "diminished" routes from P1
+    # Unassigned customers are inserted into a new route using the Nearest Neighbor heuristic.
 
 end
 

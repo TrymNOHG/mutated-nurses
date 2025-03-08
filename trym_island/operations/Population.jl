@@ -43,7 +43,7 @@ function solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients,
             else
                 for j in 1:size(current_route, 1) # Look at all insertions
                     insert!(current_route, j, patient_id)
-                    objective_time, time_violation, demand, return_time = calculate_cost(current_route, patients, travel_time_table)
+                    objective_time, time_violation, demand, return_time = calculate_cost(current_route, patients, travel_time_table) # Maybe should allow infeasible here?
                     deleteat!(current_route, j)
                     if time_violation || demand > nurse_cap || return_time > latest_return # Insertion is only feasible if all hard constraints are satisfied.
                         continue
@@ -71,7 +71,6 @@ function solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients,
             deleteat!(patient_list, candidates[1][4])
         end
     end
-
 
     # Hopefully, it does not get to this point...
     if size(patient_list, 1) > 0
