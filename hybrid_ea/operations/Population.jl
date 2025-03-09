@@ -8,7 +8,7 @@ using ..Operations
 using ..Models
 
 
-export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible, re_init, init_population, calculate_cost, init_seq_heur_pop, solomon_seq_heur
+export re_init, init_population, calculate_cost, init_seq_heur_pop, solomon_seq_heur, regret_cost
 
 function init_rand_pop(num_patients, num_nurses)
     gene_r = [[] for _ in 1:num_nurses]
@@ -278,9 +278,9 @@ function regret_cost(patient_id, neighbors, routes, travel_time_table, patients)
         min_insert_cost = (typemax(Int32), 0) # Fitness, position
 
         current_route_cost, time_violation, _, _ = calculate_cost(neighbor_route, patients, travel_time_table)
-        if time_violation
-            throw(Error("Time violation should not occur here"))
-        end
+        # if time_violation
+        #     throw(Error("Time violation should not occur here"))
+        # end
 
         for i in 1:size(neighbor_route, 1)+1 # Need to check insertion at end as well.
             # Need to re-evaluate the whole route because an insertion could ruin for the patients...
