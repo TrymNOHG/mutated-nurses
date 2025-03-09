@@ -63,7 +63,7 @@ function solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients,
                 push!(candidates, best_insertion)
             end
         end
-        if size(candidates, 1) == 0 || rand() < 0.3
+        if size(candidates, 1) == 0
             if size(routes, 1) == num_nurses
                 break
             else
@@ -160,7 +160,11 @@ function init_seq_heur_pop(num_patients, num_nurses, travel_time_table, patients
     return routes
 end
 
-function init_population(patients, num_patients, num_nurses, mu, n_p, travel_time_table, capacity, latest_return)
+function init_population(patients, num_patients, mu, n_p, travel_time_table, depot)
+    num_nurses = depot.num_nurses
+    latest_return = depot.return_time
+    capacity = depot.nurse_cap
+
     population = [solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients, capacity, latest_return) for _ in 1:mu]
     for _ in 1:n_p
         solution = EE_M(population[rand(1:size(population, 1))], patients, travel_time_table)
@@ -203,6 +207,10 @@ function init_population(patients, num_patients, num_nurses, mu, n_p, travel_tim
         sequence = collect(Iterators.flatten(gene_r))
         fitness_val, time_violation = fitness(gene_r, patients, travel_time_table, time_pen, num_time_pen) # Use the 
         if time_violation
+            gene_r = re_init(num_patients, travel_time_table, patients, depot)
+            println(size(collect(Iterators.flatten(gene_r)), 1))
+            sequence = collect(Iterators.flatten(gene_r))
+            fitness_val, time_violation = fitness(gene_r, patients, travel_time_table, time_pen, num_time_pen) 
             println("Time violation?!")
         end
         if fitness_val < best_fitness && !time_violation
@@ -297,12 +305,6 @@ function regret_cost(patient_id, neighbors, routes, travel_time_table, patients)
         push!(min_insert_r, (min_insert_cost[1], min_insert_cost[2], route_id)) # Fitness, position, route_id
     end
     
-    # With two neighborhood routes, the regret value essentially becomes the regret value of the max - min.
-    # min_cost_neigh = minimum(first.(min_insert_r))
-    # regret_cost = 0
-    # for cost, route_id, position in min_insert_r
-    #     regret_cost += cost - min_cost_neigh
-    # end
     if minimum(first.(min_insert_r)) == typemax(Int32) # This would mean that the patient has no insertion positions that do not violate the time constraint...
         return -1, (), true
     end
@@ -310,7 +312,7 @@ function regret_cost(patient_id, neighbors, routes, travel_time_table, patients)
     return total_regret_cost, min_insert_r[argmin(min_insert_r)], false
 end
 
-function re_init(num_nurses, num_patients, travel_time_table, patients)
+function re_init(num_patients, travel_time_table, patients, depot)
     """
     This function acts to create feasible (or near feasible) individuals. It helps increase the diversity and quality of the population, especially considering
     the time window constraint. 
@@ -325,6 +327,7 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
     Potential improvements:
         - There are a lot of places for improvements. There are some embarrasingly parallelizable snippets, as well as places where caching should definitely be leveraged.
     """
+    num_nurses = depot.num_nurses
     found_solution = false
     while !found_solution
         patient_list = [i for i in 1:num_patients]
@@ -339,8 +342,8 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
             i = 1
             while i <= size(patient_list, 1)
                 patient_id = patient_list[i]
-                # closest_neighbors = get_route_neighborhood(5, centroids, 0, patients[patient_id]) # Allows more than just 2 route neighbors, which could be interesting to look at 
-                closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id]) 
+                closest_neighbors = get_route_neighborhood(4, centroids, 0, patients[patient_id]) # Allows more than just 2 route neighbors, which could be interesting to look at 
+                # closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id]) 
                 cost, insertion_pos, time_violation = regret_cost(patient_id, closest_neighbors, routes, travel_time_table, patients)
                 if time_violation
                     deleteat!(patient_list, i)
@@ -372,6 +375,40 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
         end 
         if size(patient_list, 1) > 0
             continue
+        elseif size(violation_patients, 1) > 0 && size(routes, 1) < depot.num_nurses
+        # println("hi")
+            push!(routes, [pop!(violation_patients)])
+            extra_routes = 1
+            while size(violation_patients, 1) > 0 && size(routes, 1) <= depot.num_nurses
+                patient_id = popfirst!(violation_patients)
+                best_insertion = (typemax(Int32), -1)
+                for i in size(routes,1)-extra_routes:size(routes,1)
+                    current_route = routes[i]
+                    for j in 1:size(current_route, 1)+1
+                        insert!(current_route, j, patient_id)
+                        objective_time, time_violation, demand, return_time = calculate_cost(current_route, patients, travel_time_table) # Maybe should allow infeasible here?
+                        deleteat!(current_route, j)
+                        if time_violation || demand > depot.nurse_cap || return_time > depot.return_time # Insertion is only feasible if all hard constraints are satisfied.
+                            continue
+                        elseif objective_time < best_insertion[1]
+                            best_insertion = (objective_time, i, j)
+                        end
+                    end
+                end
+                # println(current_route)
+
+                if best_insertion[1] != typemax(Int32)
+                    insert!(routes[best_insertion[2]], best_insertion[3], patient_id)
+                else
+                    if size(routes, 1) == depot.num_nurses
+                        println("Dunn broke")
+                        break
+                    else
+                        push!(routes, [patient_id])
+                        extra_routes += 1
+                    end
+                end
+            end
         end
 
         return routes

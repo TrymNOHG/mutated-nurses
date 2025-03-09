@@ -10,7 +10,7 @@ using CSV
 
 
 # extract_nurse_data("./data/train/train_9.json", "./data/bin/serialized_train_9.bin")
-depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_test_0.bin")
+depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_train_9.bin")
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
 @inline function time_matrix(i::Int, j::Int)
@@ -20,8 +20,9 @@ end
 
 
 function run()
-    NUM_GEN = 50
+    NUM_GEN = 500
     cross_rate = 1.0
+    mutate_rate = 0.3
     pop_size = 100
     growth_size = 20
     time_pen = 2
@@ -29,11 +30,12 @@ function run()
     num_patients = size(patients, 1)
 
     # Init pop
-    population = @time init_population(patients, num_patients, depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap, depot.return_time)
+    population = @time init_population(patients, num_patients, pop_size, growth_size, time_matrix, depot)
 
     current_gen = 0 
     best_fitness = minimum(population.fitness_array)
     lack_of_change = 0
+    println("Start")
     # Evolutionary loop
     while current_gen < NUM_GEN
         # Parent Selection:
@@ -53,6 +55,7 @@ function run()
         println("After crossover:")
         for individual in population.genes
             if size(collect(Iterators.flatten(individual.gene_r)), 1) < 100
+                println(sort(collect(Iterators.flatten(individual.gene_r))))
                 throw("Bruh")
             end
         end
@@ -60,16 +63,26 @@ function run()
 
         # TODO: implement other mutations...
         for individual in population.genes
-            EE_M!(individual,  patients, time_matrix)
-            LNS!(15, individual.gene_r, patients, time_matrix) # Need to recalculate the fitness score then.
-        end
-
-        println("After mutation crossover:")
-        for individual in population.genes
+            if rand() < mutate_rate
+                EE_M!(individual,  patients, time_matrix)
+            end
             if size(collect(Iterators.flatten(individual.gene_r)), 1) < 100
-                throw("Bruh")
+                throw("EEM bruh")
+            end
+            # Try re-insertion mutation
+            # Try some other mutations
+            # LNS!(15, individual.gene_r, patients, time_matrix, depot) # Need to recalculate the fitness score then.
+            if size(collect(Iterators.flatten(individual.gene_r)), 1) < 100
+                throw("LNS bruh")
             end
         end
+
+        # println("After mutation crossover:")
+        # for individual in population.genes
+        #     if size(collect(Iterators.flatten(individual.gene_r)), 1) < 100
+        #         throw("Bruh")
+        #     end
+        # end
 
 
         # Re-calculate fitness array
@@ -99,14 +112,15 @@ function run()
 
         if minimum(population.fitness_array) == best_fitness
             lack_of_change += 1
-            if lack_of_change == 10
+            if lack_of_change == 15
                 best_individual_id = argmin(population.fitness_array)
                 population.genes[1] = population.genes[best_individual_id]
                 population.fitness_array[1] = population.fitness_array[best_individual_id]
                 for i in 2:size(population.genes, 1)
-                    population.genes[i] = re_init(num_nurses, num_patients, time_matrix, patients)
+                    population.genes[i] = re_init(num_patients, time_matrix, patients, depot)
                     population.fitness_array[i] = distance(population.genes[i].gene_r, time_matrix)
                 end
+                lack_of_change = 1
             end
         end
         # Check if pop_2 contains new best feasible solution

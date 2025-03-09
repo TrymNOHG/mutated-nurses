@@ -235,7 +235,7 @@ function edge_3_crossover(parent_1, parent_2, num_patients, depot, patients, tra
         best_insertion = (typemax(Int32), -1)
         # println("Before")
         # println(current_route)
-        for i in 1:size(current_route, 1)
+        for i in 1:size(current_route, 1)+1
             insert!(current_route, i, patient_id)
             objective_time, time_violation, demand, return_time = calculate_cost(current_route, patients, travel_time_table) # Maybe should allow infeasible here?
             deleteat!(current_route, i)
@@ -263,7 +263,7 @@ function edge_3_crossover(parent_1, parent_2, num_patients, depot, patients, tra
     # println("Result")
     # println(result)
     if size(result, 1) > 0
-        # println("hmm")
+        println("hmm")
         nearest_neighbor_insert!(routes, result, patients, travel_time_table, depot.nurse_cap, depot.return_time, depot.num_nurses)
     end
 
