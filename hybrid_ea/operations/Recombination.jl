@@ -24,9 +24,11 @@ function perform_crossover!(parent_ids, population, patients, num_patients, trav
         if rand() < cross_rate
             # child_gene = IB_X(travel_time_table, patients, parent_1.gene_r, parent_2.gene_r, depot, 5)
             # child_gene_2 = IB_X(travel_time_table, patients, parent_2.gene_r, parent_1.gene_r, depot, 5)
-            child_gene = edge_3_crossover(parent_1.sequence, parent_2.sequence, num_patients, depot, patients, travel_time_table)
+            # child_gene = edge_3_crossover(parent_1.sequence[1:end], parent_2.sequence[1:end], num_patients, depot, patients, travel_time_table)
+            child_gene = TBX(parent_1.sequence[1:end], parent_2.sequence[1:end], num_patients, depot, patients, travel_time_table)
             # println(child_gene)
-            child_gene_2 = edge_3_crossover(parent_2.sequence, parent_1.sequence, num_patients, depot, patients, travel_time_table)
+            # child_gene_2 = edge_3_crossover(parent_2.sequence[1:end], parent_1.sequence[1:end], num_patients, depot, patients, travel_time_table)
+            child_gene_2 = TBX(parent_2.sequence[1:end], parent_1.sequence[1:end], num_patients, depot, patients, travel_time_table)
             # TBX!(parent_1, parent_2, survivors, num_patients)
             # TBX!(parent_2, parent_1, survivors, num_patients)
             # PMX!(parent_1, parent_2, survivors, num_patients)
@@ -304,6 +306,70 @@ function edge_3_crossover!(parent_1, parent_2, survivors, num_patients)
     push!(survivors, child)
 end
 
+function TBX(parent_1, parent_2, num_patients, depot, patients, travel_time_table)
+    # Naive/slow implementation
+    split_index_1 = rand(1:num_patients)
+    split_index_2 = rand(1:num_patients)
+    interval = (min(split_index_1, split_index_2), max(split_index_1, split_index_2))
+
+    child_values = parent_2[1:end]
+    child_values[interval[1]:interval[2]] = parent_1[1:end][interval[1]:interval[2]]
+
+    xover_map = [i for i in 1:num_patients]
+    shuffle!(xover_map)
+
+    for i in 1:size(child_values, 1)
+        child_values[i] =  child_values[i] * num_patients + xover_map[i]
+    end
+
+    values = child_values[1:end]
+    sort!(values)
+    for i in 1:size(values, 1)
+        for j in 1:size(child_values, 1)
+            if child_values[j] == values[i]
+                child_values[j] = i
+            end
+        end 
+    end
+
+    routes = [[popfirst!(values)]]
+    route_id = 1
+    current_route = routes[route_id]
+    while size(values, 1) > 0 && size(routes, 1) <= depot.num_nurses
+        patient_id = popfirst!(values)
+        best_insertion = (typemax(Int32), -1)
+        for i in 1:size(current_route, 1)+1
+            insert!(current_route, i, patient_id)
+            objective_time, time_violation, demand, return_time = calculate_cost(current_route, patients, travel_time_table) # Maybe should allow infeasible here?
+            deleteat!(current_route, i)
+            if time_violation || demand > depot.nurse_cap || return_time > depot.return_time # Insertion is only feasible if all hard constraints are satisfied.
+                continue
+            elseif objective_time < best_insertion[1]
+                best_insertion = (objective_time, i)
+            end
+        end
+
+        if best_insertion[1] != typemax(Int32)
+            insert!(current_route, best_insertion[2], patient_id)
+        else
+            if size(routes, 1) == depot.num_nurses
+                break
+            else
+                push!(routes, [patient_id])
+                current_route = routes[end]
+            end
+        end
+    end
+
+    if size(values, 1) > 0
+        println("hmm")
+        nearest_neighbor_insert!(routes, values, patients, travel_time_table, depot.nurse_cap, depot.return_time, depot.num_nurses)
+    end
+
+    return routes
+
+end
+
 function TBX!(parent_1, parent_2, survivors, num_patients)
     # Naive/slow implementation
     split_index_1 = rand(1:num_patients)
@@ -340,20 +406,22 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
     r_1 = [] # Will contain k routes from parent_1
     distances = []
     for (i, route) in enumerate(parent_1)
+        # println(size(route, 1))
         if size(route, 1) == 0
             continue
         end
         push!(distances, (route_distance(route, travel_time_table)/size(route, 1), route))
     end
     
-    for _ in 1:k
+    # println(distances)
+    for _ in 1:min(k, size(distances, 1))
         max_intra_route_dist = argmax(distances) # Max distance between children
-        push!(r_1, distances[max_intra_route_dist][2])
+        push!(r_1, distances[max_intra_route_dist][2][1:end])
         deleteat!(distances, max_intra_route_dist)
     end
 
     for remain_route in distances
-        union!(unassigned_patients, remain_route[2]) # This adds all the patients not included in parent 1's route.
+        union!(unassigned_patients, remain_route[2][1:end]) # This adds all the patients not included in parent 1's route.
     end
 
     # The set of unassigned patients is the set_of_patients\patients_in_chosen_routes
@@ -362,7 +430,6 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
     parent_1_centroids = [get_centroid(route, patients) for route in r_1]
 
     parent_2_centroids = get_all_centroids(parent_2, patients)
-
     ### MINIMIZING LOCAL INTER-CENTROID DISTANCE ###
     # Essentially, include parent 2 routes that are the closest to r_1s' centroids, individually.
 
@@ -375,12 +442,12 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
         end
         sort!(inter_dist, rev=true)
         is_added = false
-        while !is_added
+        while !is_added && size(inter_dist, 1) > 0
             parent_2_route_id = inter_dist[end][2]
             if parent_2_route_id in r_2_added
                 pop!(inter_dist)
             else
-                push!(r_2, parent_2[parent_2_route_id])
+                push!(r_2, parent_2[parent_2_route_id][1:end])
                 push!(r_2_added, parent_2_route_id)
                 is_added = true
             end
@@ -391,7 +458,7 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
 
     for i in size(parent_2, 1)
         if i ∉ r_2_added
-            union!(unassigned_patients_2, parent_2[i])
+            union!(unassigned_patients_2, parent_2[i][1:end])
         end
     end
 
@@ -419,8 +486,6 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
     # end
 
     ######################################################
-
-
    
 
     r_1_flatten = collect(Iterators.flatten(r_1))
@@ -459,6 +524,10 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
 
     # Use r_2 flatten to draw candidates...
     
+    # println("Before r_2")
+    # println(size(collect(Iterators.flatten(r_1)), 1))
+    # println(length(Set(collect(Iterators.flatten(r_1)))))
+
     current_route_id = 1
     current_route = r_1[current_route_id]
     while size(r_2_flatten, 1) > 0 && size(r_1, 1) <= depot.num_nurses
@@ -501,16 +570,23 @@ function IB_X(travel_time_table, patients, parent_1, parent_2, depot, k=2)
     end
 
     # println("Hi")
+    # println(size(collect(Iterators.flatten(r_1)), 1))
     # println(length(Set(collect(Iterators.flatten(r_1)))))
     # println(sort(collect(Iterators.flatten(r_1))))
     union!(unassigned, r_2_flatten)
     # println(sort(collect(unassigned)))
     # println()
     
+    # println("IBX Violations")
+    
     violations = nearest_neighbor_insert!(r_1, unassigned, patients, travel_time_table, depot.nurse_cap, depot.return_time, depot.num_nurses)
+    # println(size(collect(Iterators.flatten(r_1)), 1))
+    # println(length(Set(collect(Iterators.flatten(r_1)))))
+    # println(violations)
     return violations ? parent_1 : r_1
 
 end
+
 
 function nearest_neighbor_insert!(r_1, unassigned, patients, travel_time_table, nurse_cap, latest_return, num_nurses)
     """

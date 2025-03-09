@@ -17,7 +17,7 @@ using CSV
 
 
 # extract_nurse_data("./data/train/train_9.json", "./data/bin/serialized_train_9.bin")
-depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_train_9.bin")
+depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_test_1.bin")
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
 @inline function time_matrix(i::Int, j::Int)
