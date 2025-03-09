@@ -18,46 +18,6 @@ function select_parents(population)
     # return stochastic_universal_sampling(population, fitness_scores, num_parents)
 end
 
-
-function pop_fitness(population::Vector{T}, travel_time_table, patients, depot, fitness_func::Function) where {T}
-    """
-    This method takes a naive approach to parent selection by solely using the probability distribution given the fitness scores.
-    """
-    fitness_scores = Vector{Float32}() 
-    total_fitness = 0
-    for (i, individual) in enumerate(population)
-        individ_fitness, objective_value = fitness_func(individual, travel_time_table, patients, depot)
-        if objective_value < 4000
-            println(individ_fitness)
-        end
-        if objective_value < 2000
-            println("Objective value fell under 1000 for:")
-            println(is_feasible(individual, patients, depot, travel_time_table))
-            println(individual)
-            actual_solution = []
-            for i in 0:size(individual.indices, 1)
-                if i == 0
-                    route = individual.values[1:individual.indices[1] - 1]
-                elseif i == size(individual.indices, 1)
-                    route = individual.values[individual.indices[i]:end]
-                else
-                    route = individual.values[individual.indices[i]:individual.indices[i+1] - 1]
-                end
-                actual_solution.append(route)
-            end
-            println(actual_solution)
-        end
-        push!(fitness_scores, individ_fitness)
-        total_fitness += individ_fitness
-    end
-
-    # for i in 1:size(fitness_scores, 1)
-    #     fitness_scores[i][1] /= total_fitness
-    # end
-
-    return fitness_scores, total_fitness
-end
-
 function sigma_select(population::ModelPop, c=2)
     output_file = population.log_dir * "/temp.csv"
     fitness_scores = population.fitness_array[1:end] # Create a copy
@@ -130,25 +90,22 @@ function stochastic_universal_sampling(population, fitness_scores, num_parents) 
     return parents
 end
 
-function tournament_select(population, num_parents::Integer, k::Integer, travel_time_table, patients, depot)
+function tournament_select(population, travel_time_table, patients, depot, k=2)
     chosen_parents = []
-    fitness_scores, total_fitness = pop_fitness(population, travel_time_table, patients, depot, nurse_fitness) # (id_of_individual, fitness_score)
     num_parents_chosen = 0
-    while num_parents_chosen < num_parents
+    while num_parents_chosen < population.lambda * 2
         # Perform sampling and comparison
-        sample = [rand(1:size(population, 1)) for _ in 1:k] # Sampling with Replacement (could also do without at a later point...)
+        sample = [rand(1:size(population.genes, 1)) for _ in 1:k] # Sampling with Replacement (could also do without at a later point...)
         winner = (typemax(Int32), nothing)
         for i in sample
-            fitness = fitness_scores[i]
+            fitness = population.fitness_array[i]
             if fitness < winner[1]                  # Deterministic probability since the most fit individual from the sample is chosen.
-                winner = (fitness, population[i])
+                winner = (fitness, i)
             end
         end
         push!(chosen_parents, winner[2]) 
-        # println(winner[1])
         num_parents_chosen += 1
     end
-    # println(chosen_parents)
 
     return chosen_parents
 end

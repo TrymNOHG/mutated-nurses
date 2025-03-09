@@ -19,29 +19,26 @@ function perform_crossover!(parent_ids, population, patients, num_patients, trav
     shuffle!(parent_ids)
     while current_index < size(parent_ids, 1)
         parent_1, parent_2 = parent_ids[current_index:current_index+1]
-        parent_1 = population.genes[parent_1].gene_r
-        parent_2 = population.genes[parent_2].gene_r
+        parent_1 = population.genes[parent_1]
+        parent_2 = population.genes[parent_2]
         if rand() < cross_rate
-            child_gene = IB_X(travel_time_table, patients, parent_1, parent_2, depot, 5)
-            child = get_gene_from_2d_arr(population.pop_id, child_gene, patients, travel_time_table, time_pen, num_time_pen)
-            push!(population.genes, child)
-            push!(population.fitness_array, child.fitness)
-            # println("child1.fitness")
-            # println(child.fitness)
-            child_gene_2 = IB_X(travel_time_table, patients, parent_2, parent_1, depot, 5)
-            child_2 = get_gene_from_2d_arr(population.pop_id, child_gene_2, patients, travel_time_table, time_pen, num_time_pen)
-            push!(population.genes, child_2)
-            push!(population.fitness_array, child_2.fitness)
-            # println("child2.fitness")
-            # println(child_2.fitness)
+            # child_gene = IB_X(travel_time_table, patients, parent_1.gene_r, parent_2.gene_r, depot, 5)
+            # child_gene_2 = IB_X(travel_time_table, patients, parent_2.gene_r, parent_1.gene_r, depot, 5)
+            child_gene = edge_3_crossover(parent_1.sequence, parent_2.sequence, num_patients, depot, patients, travel_time_table)
+            # println(child_gene)
+            child_gene_2 = edge_3_crossover(parent_2.sequence, parent_1.sequence, num_patients, depot, patients, travel_time_table)
             # TBX!(parent_1, parent_2, survivors, num_patients)
             # TBX!(parent_2, parent_1, survivors, num_patients)
             # PMX!(parent_1, parent_2, survivors, num_patients)
             # PMX!(parent_1, parent_2, survivors, num_patients)
-            # edge_3_crossover!(parent_1, parent_2, survivors, num_patients)
-            # edge_3_crossover!(parent_2, parent_1, survivors, num_patients)
             # order_1_crossover!(parent_1, parent_2, survivors, num_patients)
             # order_1_crossover!(parent_2, parent_1, survivors, num_patients)
+            child = get_gene_from_2d_arr(population.pop_id, child_gene, patients, travel_time_table, time_pen, num_time_pen)
+            push!(population.genes, child)
+            push!(population.fitness_array, child.fitness)
+            child_2 = get_gene_from_2d_arr(population.pop_id, child_gene_2, patients, travel_time_table, time_pen, num_time_pen)
+            push!(population.genes, child_2)
+            push!(population.fitness_array, child_2.fitness)
         else
             push!(population.genes, parent_1)
             push!(survivors, parent_2)
@@ -201,6 +198,82 @@ function find_shortest_list(edge_table, edges)
         end
     end
     return candidates
+end
+
+function edge_3_crossover(parent_1, parent_2, num_patients, depot, patients, travel_time_table)
+    # Need to implement the detection/representation of common edges better.
+    edge_table = gen_edge_table(parent_1, parent_2)
+    current_index = rand(1:num_patients)
+    result = []
+    add_edge!(result, edge_table, current_index)
+    while size(result, 1) < num_patients
+        edges = edge_table[current_index]
+        if size(edges, 1) == 0
+            current_index = rand(1:num_patients) # Seems like it can take a while to find the last value...
+            continue
+        end
+        is_common_edge, val = find_common_edge(edges)
+        if is_common_edge == true
+            current_index = val
+        else
+            # No common edge, then find entry with shortest list, else random
+            shortest_list_candidates = find_shortest_list(edge_table, edges)
+            current_index = shortest_list_candidates[rand(1:size(shortest_list_candidates, 1))]
+        end
+        add_edge!(result, edge_table, current_index)
+    end
+
+    # Random -> Shortest_list (from random's edges) -> Common Edge
+    # println(size(result, 1))
+
+    routes = [[popfirst!(result)]]
+    route_id = 1
+    current_route = routes[route_id]
+    while size(result, 1) > 0 && size(routes, 1) <= depot.num_nurses
+        patient_id = popfirst!(result)
+        # println(patient_id)
+        best_insertion = (typemax(Int32), -1)
+        # println("Before")
+        # println(current_route)
+        for i in 1:size(current_route, 1)+1
+            insert!(current_route, i, patient_id)
+            objective_time, time_violation, demand, return_time = calculate_cost(current_route, patients, travel_time_table) # Maybe should allow infeasible here?
+            deleteat!(current_route, i)
+            if time_violation || demand > depot.nurse_cap || return_time > depot.return_time # Insertion is only feasible if all hard constraints are satisfied.
+                continue
+            elseif objective_time < best_insertion[1]
+                best_insertion = (objective_time, i)
+            end
+        end
+        # println(current_route)
+
+        if best_insertion[1] != typemax(Int32)
+            insert!(current_route, best_insertion[2], patient_id)
+        else
+            if size(routes, 1) == depot.num_nurses
+                # println("Dunn broke")
+                break
+            else
+                push!(routes, [patient_id])
+                current_route = routes[end]
+            end
+        end
+    end
+    # println(routes)
+    # println("Result")
+    # println(result)
+    if size(result, 1) > 0
+        println("hmm")
+        nearest_neighbor_insert!(routes, result, patients, travel_time_table, depot.nurse_cap, depot.return_time, depot.num_nurses)
+    end
+
+    # println(sort(collect(Iterators.flatten(routes))))
+    # println(size(collect(Iterators.flatten(routes)), 1))
+    # if size(sort(collect(Iterators.flatten(routes))), 1) != 100
+    #     throw(Error(""))
+    # end
+
+    return routes
 end
 
 function edge_3_crossover!(parent_1, parent_2, survivors, num_patients)

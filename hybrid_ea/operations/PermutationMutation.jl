@@ -107,7 +107,6 @@ function route_mutation!(indices::Vector{Int64}, num_patients::Int64, mutate_rat
 end
 
 function EE_M!(individual, patients, travel_time_table) # ::Gene
-    
     centroids = []
     for route in individual.gene_r
         push!(centroids, (get_centroid(route, patients)))
@@ -127,10 +126,11 @@ function EE_M!(individual, patients, travel_time_table) # ::Gene
                 insert!(route, i, patient_id) # No better position...
             else
                 return new_route
+                # continue # Could return
             end
         end
     end
-    return gene_r
+
 end
 
 # TODO:
@@ -158,10 +158,11 @@ function EE_M(gene_r, patients, travel_time_table) # ::Gene
             if is_better_solution == false
                 insert!(route, i, patient_id) # No better position...
             else
-                return new_route
+                continue
             end
         end
     end
+    
     return gene_r
 end
 

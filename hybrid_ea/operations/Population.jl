@@ -5,8 +5,10 @@ import Random.randperm!
 import Random.shuffle!
 
 using ..Operations
+using ..Models
 
-export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible, re_init, init_populations, calculate_cost, init_seq_heur_pop, solomon_seq_heur
+
+export re_init, init_population, calculate_cost, init_seq_heur_pop, solomon_seq_heur, regret_cost
 
 function init_rand_pop(num_patients, num_nurses)
     gene_r = [[] for _ in 1:num_nurses]
@@ -61,7 +63,7 @@ function solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients,
                 push!(candidates, best_insertion)
             end
         end
-        if size(candidates, 1) == 0 || rand() < 0.3
+        if size(candidates, 1) == 0
             if size(routes, 1) == num_nurses
                 break
             else
@@ -158,58 +160,88 @@ function init_seq_heur_pop(num_patients, num_nurses, travel_time_table, patients
     return routes
 end
 
-function init_populations(patients, num_patients, num_nurses, mu, n_p, travel_time_table, capacity, latest_return)
-    # populations = [[init_seq_heur_pop(num_patients, num_nurses, travel_time_table, patients) for _ in 1:mu] for _ in 1:2]
-    populations = [[solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients, capacity, latest_return) for _ in 1:mu] for _ in 1:2]
-    for pop in populations
-        for _ in 1:n_p
-            solution = EE_M(pop[rand(1:size(pop, 1))], patients, travel_time_table)
-            push!(pop, solution)
-        end
-        # Higher eval indicates worse individual
-        total_demand = 0
-        for patient in patients
-            total_demand += patient.demand
-        end
-        total_capacity = num_nurses * capacity
-        r_m = total_demand / total_capacity
-        gamma = 1
-        time_pen = 1
-        num_time_pen = 1
-        scores = []
-        
-        for (i, individual) in enumerate(pop)
-            value = evaluate(individual, patients, travel_time_table, num_patients, r_m, gamma, time_pen, num_time_pen) 
-            push!(scores, (value, i))
-        end
+function init_population(patients, num_patients, mu, n_p, travel_time_table, depot)
+    num_nurses = depot.num_nurses
+    latest_return = depot.return_time
+    capacity = depot.nurse_cap
 
-        sort!(scores, by=x->x[1], rev=true)
-        n_p_worst = scores[1:n_p]
-        sort!(n_p_worst, by=x->x[2], rev=true) # So that removing the individuals does not affect the other individuals' indices.
-        
-        for instance in n_p_worst
-            deleteat!(pop, instance[2])
-        end            
+    population = [solomon_seq_heur(num_patients, num_nurses, travel_time_table, patients, capacity, latest_return) for _ in 1:mu]
+    for _ in 1:n_p
+        solution = EE_M(population[rand(1:size(population, 1))], patients, travel_time_table)
+        push!(population, solution)
     end
-
-    # I am looking for the minimum number of nurses needed for a feasible/viable solution. Assumption here is that fewer nurses generally means shorter travel time.
-    best_individual, r_min_1 = r_min(populations[1], patients, travel_time_table)
-    best_individual_2, r_min_2 = r_min(populations[2], patients, travel_time_table)
-
-    populations[1][1] = r_min_2 < r_min_1 ? best_individual_2 : best_individual
-    r_min_1 = min(r_min_1, r_min_2)
-
-    # Here, I re-initialize the pop_1 with r_min nurses in an effort to construct fewer routes (generally more optimal). All but the best solution is re-initialized.
-    for i in 2:size(populations[1], 1)
-        populations[1][i] = re_init(r_min_1, num_patients, travel_time_table, patients)
+    # Higher eval indicates worse individual
+    total_demand = 0
+    for patient in patients
+        total_demand += patient.demand
     end
-
-    # I do the same thing here for pop_2 but with less routes. All individuals will be replaced in this population.
-    for i in 1:size(populations[2], 1)
-        populations[2][i] = re_init(r_min_1-1, num_patients, travel_time_table, patients)
-    end
+    total_capacity = num_nurses * capacity
+    r_m = total_demand / total_capacity
+    gamma = 1
+    time_pen = 1
+    num_time_pen = 1
+    scores = []
     
-    return populations
+    for (i, individual) in enumerate(population)
+        value = evaluate(individual, patients, travel_time_table, num_patients, r_m, gamma, time_pen, num_time_pen) 
+        push!(scores, (value, i))
+    end
+
+    sort!(scores, by=x->x[1], rev=true)
+    n_p_worst = scores[1:n_p]
+    sort!(n_p_worst, by=x->x[2], rev=true) # So that removing the individuals does not affect the other individuals' indices.
+    
+    for instance in n_p_worst
+        deleteat!(population, instance[2])
+    end            
+
+    time_pen = 2
+    num_time_pen = 1.5
+
+    popu = []
+    fitness_array = []
+    best_id = 0
+    best_fitness = typemax(Int32)
+    for (i, individual) in enumerate(population)
+        gene_r = individual
+        sequence = collect(Iterators.flatten(gene_r))
+        fitness_val, time_violation = fitness(gene_r, patients, travel_time_table, time_pen, num_time_pen) # Use the 
+        if time_violation
+            gene_r = re_init(num_patients, travel_time_table, patients, depot)
+            println(size(collect(Iterators.flatten(gene_r)), 1))
+            sequence = collect(Iterators.flatten(gene_r))
+            fitness_val, time_violation = fitness(gene_r, patients, travel_time_table, time_pen, num_time_pen) 
+            println("Time violation?!")
+        end
+        if fitness_val < best_fitness && !time_violation
+            best_id = i
+            best_fitness = fitness_val
+        end
+        push!(fitness_array, fitness_val)
+        push!(popu, Gene(
+            sequence,
+            fitness_val,
+            gene_r,
+            [],
+            [],
+            [],
+            [],
+            []
+        ))
+    end
+    return ModelPop(
+        0,
+        num_patients,
+        popu,
+        fitness_array,
+        best_id,
+        [],
+        [],
+        mu,
+        n_p,
+        "./trym_island/logs"
+    )
+
 end
 
 function calculate_cost(route, patients, travel_time_table)
@@ -254,9 +286,9 @@ function regret_cost(patient_id, neighbors, routes, travel_time_table, patients)
         min_insert_cost = (typemax(Int32), 0) # Fitness, position
 
         current_route_cost, time_violation, _, _ = calculate_cost(neighbor_route, patients, travel_time_table)
-        if time_violation
-            throw(Error("Time violation should not occur here"))
-        end
+        # if time_violation
+        #     throw(Error("Time violation should not occur here"))
+        # end
 
         for i in 1:size(neighbor_route, 1)+1 # Need to check insertion at end as well.
             # Need to re-evaluate the whole route because an insertion could ruin for the patients...
@@ -273,12 +305,6 @@ function regret_cost(patient_id, neighbors, routes, travel_time_table, patients)
         push!(min_insert_r, (min_insert_cost[1], min_insert_cost[2], route_id)) # Fitness, position, route_id
     end
     
-    # With two neighborhood routes, the regret value essentially becomes the regret value of the max - min.
-    # min_cost_neigh = minimum(first.(min_insert_r))
-    # regret_cost = 0
-    # for cost, route_id, position in min_insert_r
-    #     regret_cost += cost - min_cost_neigh
-    # end
     if minimum(first.(min_insert_r)) == typemax(Int32) # This would mean that the patient has no insertion positions that do not violate the time constraint...
         return -1, (), true
     end
@@ -286,7 +312,7 @@ function regret_cost(patient_id, neighbors, routes, travel_time_table, patients)
     return total_regret_cost, min_insert_r[argmin(min_insert_r)], false
 end
 
-function re_init(num_nurses, num_patients, travel_time_table, patients)
+function re_init(num_patients, travel_time_table, patients, depot)
     """
     This function acts to create feasible (or near feasible) individuals. It helps increase the diversity and quality of the population, especially considering
     the time window constraint. 
@@ -301,6 +327,7 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
     Potential improvements:
         - There are a lot of places for improvements. There are some embarrasingly parallelizable snippets, as well as places where caching should definitely be leveraged.
     """
+    num_nurses = depot.num_nurses
     found_solution = false
     while !found_solution
         patient_list = [i for i in 1:num_patients]
@@ -315,8 +342,8 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
             i = 1
             while i <= size(patient_list, 1)
                 patient_id = patient_list[i]
-                # closest_neighbors = get_route_neighborhood(5, centroids, 0, patients[patient_id]) # Allows more than just 2 route neighbors, which could be interesting to look at 
-                closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id]) 
+                closest_neighbors = get_route_neighborhood(4, centroids, 0, patients[patient_id]) # Allows more than just 2 route neighbors, which could be interesting to look at 
+                # closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id]) 
                 cost, insertion_pos, time_violation = regret_cost(patient_id, closest_neighbors, routes, travel_time_table, patients)
                 if time_violation
                     deleteat!(patient_list, i)
@@ -348,6 +375,40 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
         end 
         if size(patient_list, 1) > 0
             continue
+        elseif size(violation_patients, 1) > 0 && size(routes, 1) < depot.num_nurses
+        # println("hi")
+            push!(routes, [pop!(violation_patients)])
+            extra_routes = 1
+            while size(violation_patients, 1) > 0 && size(routes, 1) <= depot.num_nurses
+                patient_id = popfirst!(violation_patients)
+                best_insertion = (typemax(Int32), -1)
+                for i in size(routes,1)-extra_routes:size(routes,1)
+                    current_route = routes[i]
+                    for j in 1:size(current_route, 1)+1
+                        insert!(current_route, j, patient_id)
+                        objective_time, time_violation, demand, return_time = calculate_cost(current_route, patients, travel_time_table) # Maybe should allow infeasible here?
+                        deleteat!(current_route, j)
+                        if time_violation || demand > depot.nurse_cap || return_time > depot.return_time # Insertion is only feasible if all hard constraints are satisfied.
+                            continue
+                        elseif objective_time < best_insertion[1]
+                            best_insertion = (objective_time, i, j)
+                        end
+                    end
+                end
+                # println(current_route)
+
+                if best_insertion[1] != typemax(Int32)
+                    insert!(routes[best_insertion[2]], best_insertion[3], patient_id)
+                else
+                    if size(routes, 1) == depot.num_nurses
+                        println("Dunn broke")
+                        break
+                    else
+                        push!(routes, [patient_id])
+                        extra_routes += 1
+                    end
+                end
+            end
         end
 
         return routes

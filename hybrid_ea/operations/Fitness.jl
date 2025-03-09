@@ -2,7 +2,7 @@ module Fitness
 
 export pop_1_fitness, pop_2_fitness, evaluate, route_distance, fitness, distance
 
-function fitness(pop_id, gene_r, patients, travel_time_table, time_pen, num_time_pen)
+function fitness(gene_r, patients, travel_time_table, time_pen, num_time_pen)
     CV = 0
     time_violations = 0
     objective_time = 0
@@ -25,11 +25,7 @@ function fitness(pop_id, gene_r, patients, travel_time_table, time_pen, num_time
     end
     CV += num_time_pen * time_violations
 
-    if pop_id == 1
-        return objective_time + CV, time_violations != 0
-    else
-        return CV, time_violations != 0
-    end
+    return objective_time + CV, time_violations != 0
 end
 
 function calc_temporal_constraint(gene_r, patients, travel_time_table, time_pen, num_time_pen)
