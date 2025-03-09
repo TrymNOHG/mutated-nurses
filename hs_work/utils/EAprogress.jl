@@ -63,6 +63,41 @@ function pop_init(init_mu::Int, init_lambda::Int, seq_len::Int, depot::Depot, pa
     calc_biased_fitness(genetic_pool, genetic_pool.feas_genes, nbClose,nbElite)
     return genetic_pool
 end
+# function binary_tournament(genetic_pool::Population)
+#     curr_pop_size = length(genetic_pool.genes)
+    
+#     # Randomly select 4 candidate indices (allowing duplicates)
+#     possible_parents = rand(1:curr_pop_size, 4)
+    
+#     # Process first pair (parents 1 and 2)
+#     parent_a, parent_b = possible_parents[1], possible_parents[2]
+#     if genetic_pool.biased_fitness_array[parent_a] <= genetic_pool.biased_fitness_array[parent_b]
+#         p1, not_p1 = parent_a, parent_b
+#     else
+#         p1, not_p1 = parent_b, parent_a
+#     end
+    
+#     # Calculate selection probabilities for first pair
+#     sum_fit1 = genetic_pool.biased_fitness_array[p1] + genetic_pool.biased_fitness_array[not_p1]
+#     prob_p1 = sum_fit1 ≈ 0.0 ? 0.5 : (1 - (genetic_pool.biased_fitness_array[p1] / sum_fit1))
+#     f1 = rand() < prob_p1 ? p1 : not_p1
+
+#     # Process second pair (parents 3 and 4)
+#     parent_c, parent_d = possible_parents[3], possible_parents[4]
+#     if genetic_pool.biased_fitness_array[parent_c] >= genetic_pool.biased_fitness_array[parent_d]
+#         p2, not_p2 = parent_c, parent_d
+#     else
+#         p2, not_p2 = parent_d, parent_c
+#     end
+    
+#     # Calculate selection probabilities for second pair
+#     sum_fit2 = genetic_pool.biased_fitness_array[p2] + genetic_pool.biased_fitness_array[not_p2]
+#     prob_p2 = sum_fit2 ≈ 0.0 ? 0.5 : (1 - (genetic_pool.biased_fitness_array[p2] / sum_fit2))
+#     f2 = rand() < prob_p2 ? p2 : not_p2
+
+#     return f1, f2
+# end
+
 function binary_tournament(genetic_pool::Population)
     curr_pop_size = length(genetic_pool.genes)
     
