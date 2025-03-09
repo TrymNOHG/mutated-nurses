@@ -51,7 +51,7 @@ function get_route_neighborhood(n_routes, centroids, patient_route_id, patient)
         push!(neighbors, (distance, centroid_id))
     end
     sort!(neighbors, by=x->x[1])
-    neighbors = neighbors[1:n_routes]
+    neighbors = neighbors[1:min(size(neighbors, 1), n_routes)]
     return neighbors
 end
 
@@ -100,7 +100,7 @@ function first_apply_neighbor_insert!(removal_reward, neighbors, routes, patient
         neighbor_route = routes[route_id]
         current_cost_of_route, _ = calculate_cost(neighbor_route, patients, travel_time_table)
         # println(neighbor_route)
-        for i in 1:size(neighbor_route, 1)
+        for i in 1:size(neighbor_route, 1)+1
             # println(neighbor_route)
             insert!(neighbor_route, i, patient_id)
             new_cost_of_route, feasible = calculate_cost(neighbor_route, patients, travel_time_table)

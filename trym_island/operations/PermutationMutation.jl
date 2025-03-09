@@ -107,12 +107,13 @@ function route_mutation!(indices::Vector{Int64}, num_patients::Int64, mutate_rat
 end
 
 function EE_M!(individual, patients, travel_time_table) # ::Gene
-    
+    # println("EEM")
+    # println(size(collect(Iterators.flatten(individual.gene_r)), 1))
     centroids = []
     for route in individual.gene_r
         push!(centroids, (get_centroid(route, patients)))
     end
-
+    
     for (route_index, route) in enumerate(individual.gene_r)
         for (i, patient_id) in enumerate(route)
             # println(route)
@@ -126,11 +127,14 @@ function EE_M!(individual, patients, travel_time_table) # ::Gene
             if is_better_solution == false
                 insert!(route, i, patient_id) # No better position...
             else
+                # println("Better route")
+                # println(size(collect(Iterators.flatten(new_route)), 1))
+                # println(size(collect(Iterators.flatten(individual.gene_r)), 1))
                 return new_route
             end
         end
     end
-    return gene_r
+    return individual.gene_r
 end
 
 # TODO:

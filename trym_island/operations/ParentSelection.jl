@@ -73,7 +73,7 @@ function sigma_select(population::ModelPop, c=2)
     std = sqrt(sum([(fitness - mean)^2 for fitness in fitness_scores]) / size(fitness_scores, 1))
     # println(std)
 
-    best_solution = [minimum(fitness_scores), population.genes[argmin(fitness_scores)].gene_r] # CHANGE BASED ON MAXIMIZATION OR MINIMIZATION PROBLEM!!!
+    best_solution = [minimum(fitness_scores), population.genes[argmin(fitness_scores)].gene_r[1:end]] # CHANGE BASED ON MAXIMIZATION OR MINIMIZATION PROBLEM!!!
 
     # Log
     df = DataFrame(Max=maximum(fitness_scores), Min=best_solution[1], Mean=mean)

@@ -6,7 +6,7 @@ import Random.shuffle!
 
 using ..Operations
 
-export init_permutation, init_bitstring, init_permutation_specific, repair!, is_feasible, re_init, init_populations, calculate_cost, init_seq_heur_pop, solomon_seq_heur
+export re_init, re_init2, init_populations, calculate_cost, init_seq_heur_pop, solomon_seq_heur, regret_cost
 
 function init_rand_pop(num_patients, num_nurses)
     gene_r = [[] for _ in 1:num_nurses]
@@ -200,14 +200,17 @@ function init_populations(patients, num_patients, num_nurses, mu, n_p, travel_ti
     r_min_1 = min(r_min_1, r_min_2)
 
     # Here, I re-initialize the pop_1 with r_min nurses in an effort to construct fewer routes (generally more optimal). All but the best solution is re-initialized.
-    for i in 2:size(populations[1], 1)
+    for i in 2:size(populations[1], 1)-1
         populations[1][i] = re_init(r_min_1, num_patients, travel_time_table, patients)
     end
 
     # I do the same thing here for pop_2 but with less routes. All individuals will be replaced in this population.
-    for i in 1:size(populations[2], 1)
+    for i in 1:size(populations[2], 1)-1
         populations[2][i] = re_init(r_min_1-1, num_patients, travel_time_table, patients)
     end
+
+    populations[1][end] = init_rand_pop(num_patients, num_nurses)
+    populations[2][end] = init_rand_pop(num_patients, num_nurses)
     
     return populations
 end
@@ -254,9 +257,9 @@ function regret_cost(patient_id, neighbors, routes, travel_time_table, patients)
         min_insert_cost = (typemax(Int32), 0) # Fitness, position
 
         current_route_cost, time_violation, _, _ = calculate_cost(neighbor_route, patients, travel_time_table)
-        if time_violation
-            throw(Error("Time violation should not occur here"))
-        end
+        # if time_violation
+        #     throw(Error("Time violation should not occur here"))
+        # end
 
         for i in 1:size(neighbor_route, 1)+1 # Need to check insertion at end as well.
             # Need to re-evaluate the whole route because an insertion could ruin for the patients...
@@ -264,8 +267,8 @@ function regret_cost(patient_id, neighbors, routes, travel_time_table, patients)
             insert!(neighbor_route, i, patient_id)
             cost, time_violation, _, _ = calculate_cost(neighbor_route, patients, travel_time_table)
             insert_cost = cost - current_route_cost
-            if !time_violation && insert_cost < min_insert_cost[1]
-                min_insert_cost = (insert_cost, i)
+            if insert_cost < min_insert_cost[1]
+                min_insert_cost = (insert_cost + 10000 * time_violation, i)
             end
             deleteat!(neighbor_route, i)
         end
@@ -348,6 +351,112 @@ function re_init(num_nurses, num_patients, travel_time_table, patients)
         end 
         if size(patient_list, 1) > 0
             continue
+        end
+
+        return routes
+    end
+    # Now to handle the infeasible patients...
+    # Need extended insertion regret cost function...
+    # Test the function and see if I get any violations at all from this construction...
+end
+
+function re_init2(num_patients, travel_time_table, patients, depot)
+    """
+    This function acts to create feasible (or near feasible) individuals. It helps increase the diversity and quality of the population, especially considering
+    the time window constraint. 
+    It essentially works like this:
+        1. Provide each nurse with one patient randomly.
+        2. Loop the following until not possible anymore:
+            - Calculate every patients regret cost based on the principle of minimum insertion into a 2-route neighborhood.
+            - Set aside the patients who no matter what, violate the time constraint.
+            - Find the patient with the highest regret cost and insert them into the minimum insertion cost position.
+        3. Deal with the stubborn violation patients by running an extended insertion regret cost thing.
+    
+    Potential improvements:
+        - There are a lot of places for improvements. There are some embarrasingly parallelizable snippets, as well as places where caching should definitely be leveraged.
+    """
+    num_nurses = depot.num_nurses
+    found_solution = false
+    while !found_solution
+        patient_list = [i for i in 1:num_patients]
+        shuffle!(patient_list)
+        routes = [[pop!(patient_list)] for i in 1:num_nurses]
+
+        violation_patients = []
+        centroids = get_all_centroids(routes, patients)
+
+        while size(patient_list, 1) > 0
+            regret_costs = []
+            i = 1
+            while i <= size(patient_list, 1)
+                patient_id = patient_list[i]
+                closest_neighbors = get_route_neighborhood(4, centroids, 0, patients[patient_id]) # Allows more than just 2 route neighbors, which could be interesting to look at 
+                # closest_neighbors = get_route_neighborhood(centroids, 0, patients[patient_id]) 
+                cost, insertion_pos, time_violation = regret_cost(patient_id, closest_neighbors, routes, travel_time_table, patients)
+                if time_violation
+                    deleteat!(patient_list, i)
+                    push!(violation_patients, patient_id)
+                    # i -= i == 1 ? 1 : 2
+                    i -= 1
+                else
+                    push!(regret_costs, (cost, insertion_pos, patient_id, i))
+                end
+                i += 1
+            end
+
+            # The patients with the highest regret costs are inserted first, since they will have fewer good options later.
+            if size(regret_costs, 1) == 0
+                break
+            end
+            insertion_patient_info = regret_costs[argmax(regret_costs)]
+            position = insertion_patient_info[2][2]
+            route_id = insertion_patient_info[2][3]
+            patient_id = insertion_patient_info[3]
+            i = insertion_patient_info[4]
+            # Insert in locations that minimize cost and do not violate time-window constraint.
+            insert!(routes[route_id], position, patient_id)
+            deleteat!(patient_list, i)
+            
+            # Once I have inserted, I can update the centroid for the route inserted into.
+            centroids[route_id] = (get_centroid(routes[route_id], patients))
+            
+        end 
+        if size(patient_list, 1) > 0
+            continue
+        elseif size(violation_patients, 1) > 0 && size(routes, 1) < depot.num_nurses
+        # println("hi")
+            push!(routes, [pop!(violation_patients)])
+            extra_routes = 1
+            while size(violation_patients, 1) > 0 && size(routes, 1) <= depot.num_nurses
+                patient_id = popfirst!(violation_patients)
+                best_insertion = (typemax(Int32), -1)
+                for i in size(routes,1)-extra_routes:size(routes,1)
+                    current_route = routes[i]
+                    for j in 1:size(current_route, 1)+1
+                        insert!(current_route, j, patient_id)
+                        objective_time, time_violation, demand, return_time = calculate_cost(current_route, patients, travel_time_table) # Maybe should allow infeasible here?
+                        deleteat!(current_route, j)
+                        if time_violation || demand > depot.nurse_cap || return_time > depot.return_time # Insertion is only feasible if all hard constraints are satisfied.
+                            continue
+                        elseif objective_time < best_insertion[1]
+                            best_insertion = (objective_time, i, j)
+                        end
+                    end
+                end
+                # println(current_route)
+
+                if best_insertion[1] != typemax(Int32)
+                    insert!(routes[best_insertion[2]], best_insertion[3], patient_id)
+                else
+                    if size(routes, 1) == depot.num_nurses
+                        println("Dunn broke")
+                        break
+                    else
+                        push!(routes, [patient_id])
+                        extra_routes += 1
+                    end
+                end
+            end
         end
 
         return routes
