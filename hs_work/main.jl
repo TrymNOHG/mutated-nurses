@@ -17,12 +17,12 @@ max_iter = 100
 
 
 # Code to cache training files  
-# filepath = "train/train_3.json"
-# save_path = "ser_train/serialized_data_3.bin"
-# @time extract_nurse_data(filepath, save_path)
+filepath = "train/train_9.json"
+save_path = "ser_train/serialized_data_9.bin"
+@time extract_nurse_data(filepath, save_path)
 
 
-load_path = "ser_train/serialized_data_0.bin"
+load_path = "ser_train/serialized_data_9.bin"
 depot, patients, tt_tuple, n_col = load_data(load_path)
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability

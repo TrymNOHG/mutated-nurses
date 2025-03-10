@@ -22,13 +22,13 @@ function perform_crossover!(parent_ids, population, patients, num_patients, trav
         parent_1 = population.genes[parent_1]
         parent_2 = population.genes[parent_2]
         if rand() < cross_rate
-            # child_gene = IB_X(travel_time_table, patients, parent_1.gene_r, parent_2.gene_r, depot, 5)
-            # child_gene_2 = IB_X(travel_time_table, patients, parent_2.gene_r, parent_1.gene_r, depot, 5)
+            child_gene = IB_X(travel_time_table, patients, parent_1.gene_r, parent_2.gene_r, depot, 5)
+            child_gene_2 = IB_X(travel_time_table, patients, parent_2.gene_r, parent_1.gene_r, depot, 5)
             # child_gene = edge_3_crossover(parent_1.sequence[1:end], parent_2.sequence[1:end], num_patients, depot, patients, travel_time_table)
-            child_gene = TBX(parent_1.sequence[1:end], parent_2.sequence[1:end], num_patients, depot, patients, travel_time_table)
+            # child_gene = TBX(parent_1.sequence[1:end], parent_2.sequence[1:end], num_patients, depot, patients, travel_time_table)
             # println(child_gene)
             # child_gene_2 = edge_3_crossover(parent_2.sequence[1:end], parent_1.sequence[1:end], num_patients, depot, patients, travel_time_table)
-            child_gene_2 = TBX(parent_2.sequence[1:end], parent_1.sequence[1:end], num_patients, depot, patients, travel_time_table)
+            # child_gene_2 = TBX(parent_2.sequence[1:end], parent_1.sequence[1:end], num_patients, depot, patients, travel_time_table)
             # TBX!(parent_1, parent_2, survivors, num_patients)
             # TBX!(parent_2, parent_1, survivors, num_patients)
             # PMX!(parent_1, parent_2, survivors, num_patients)

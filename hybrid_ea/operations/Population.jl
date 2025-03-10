@@ -252,7 +252,6 @@ function calculate_cost(route, patients, travel_time_table)
     if size(route, 1) == 0
         return 0, false, false, false
     end
-
     from = 1
     time = 0
     demand = 0

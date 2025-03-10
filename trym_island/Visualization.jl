@@ -40,7 +40,8 @@ function plot_patient_routes(id_routes, patients, depot_coords::Tuple{Int,Int}=(
     
     colors = distinguishable_colors(length(routes), [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
     
-    for (route_idx, route) in enumerate(routes)
+    route_idx = 1
+    for route in routes
         if isempty(route)
             continue
         end
@@ -66,6 +67,7 @@ function plot_patient_routes(id_routes, patients, depot_coords::Tuple{Int,Int}=(
         for i in 1:length(ids)
             annotate!(xs[i], ys[i] + 0.5, text("$(ids[i])", 8, :center, colors[route_idx]))
         end
+        route_idx += 1
     end
     
     savefig(p, filename)

@@ -18,8 +18,8 @@ using .NurseReader
 using CSV
 
 
-extract_nurse_data("./data/train/train_9.json", "./data/bin/serialized_train_9.bin")
-depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_train_9.bin")
+extract_nurse_data("./data/train/train_0.json", "./data/bin/serialized_train_0.bin")
+depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_train_0.bin")
 
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
@@ -84,10 +84,10 @@ function run()
         ))
     end
 
-    for individual in populations[1].genes
-        plot_patient_routes(individual.gene_r, patients, (depot.x_coord, depot.y_coord))
-        throw(Error(""))
-    end
+    # for individual in populations[1].genes
+    #     plot_patient_routes(individual.gene_r, patients, (depot.x_coord, depot.y_coord))
+    #     throw(Error(""))
+    # end
     
 
     best_fitness = minimum(populations[1].fitness_array)
@@ -144,7 +144,7 @@ function run()
 
             # if minimum(populations[1].fitness_array) == best_fitness
             #     lack_of_change += 0.5
-            #     if lack_of_change == 15
+            #     if lack_of_change == 10
             #         best_individual_id = argmin(populations[1].fitness_array)
             #         populations[1].genes[1] = populations[1].genes[best_individual_id]
             #         populations[1].fitness_array[1] = populations[1].fitness_array[best_individual_id]
