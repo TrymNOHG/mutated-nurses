@@ -15,9 +15,12 @@ using .NurseReader
 
 using CSV
 
+if length(ARGS) < 1
+    error("Please provide the path to the serialized data file as an argument.")
+end
 
 # extract_nurse_data("./data/train/train_9.json", "./data/bin/serialized_train_9.bin")
-depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_train_9.bin")
+depot, patients, tt_tuple, n_col= load_data("../hs_work/ser_train/"*ARGS[1])
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
 @inline function time_matrix(i::Int, j::Int)
@@ -25,11 +28,12 @@ const N_COL = n_col        # for type stability
     TT_TUPLE[(i-1)*N_COL + j]
 end
 
+println("Running 2 island approach")
 
 function run()
-    NUM_GEN = 10
+    NUM_GEN = 5
     cross_rate = 1.0
-    pop_size = 10
+    pop_size = 20
     growth_size = 1
     time_pen = 2
     num_time_pen = 1.5
@@ -144,13 +148,29 @@ function run()
         current_gen += 1
     end
 
-    # Use RC_M to try and locally improve the best solution.
-    for pop in populations
-        println(pop.genes[rand(1:size(pop.genes, 1))].gene_r)
-        println(pop.pop_id)
-        println(minimum(pop.fitness_array))
-        println(pop.genes[argmin(pop.fitness_array)].gene_r)
+    open("../input_4_hgdacKool.txt", "a") do file
+        for (rank, idx) in enumerate(top_indices)
+            # Print to console
+            # println("Rank #$rank (Gene Index: $idx)")
+            # println("Biased Fitness: $(genetic_pool.biased_fitness_array[idx])")
+            # println("Actual Fitness: $(genetic_pool.fitness_array[idx])")
+            # println("Routes:")
+            # println(genetic_pool.genes[idx].gene_r)
+            # println("--------------------------")
+            
+            # Write to file using println
+            println(file, genetic_pool.genes[idx].gene_r)
+    
+        end
     end
+
+    # Use RC_M to try and locally improve the best solution.
+    # for pop in populations
+    #     println(pop.genes[rand(1:size(pop.genes, 1))].gene_r)
+    #     println(pop.pop_id)
+    #     println(minimum(pop.fitness_array))
+    #     println(pop.genes[argmin(pop.fitness_array)].gene_r)
+    # end
     
 end
 

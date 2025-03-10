@@ -1,10 +1,9 @@
 module Modules
 
-include("./models/Models.jl")
-include("./operations/Operations.jl")
+include("models/Models.jl")
+include("operations/Operations.jl")
 
 using .Models, .Operations
-
 
 export Models, Operations
 export Gene, ModelPop
