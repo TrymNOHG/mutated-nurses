@@ -5,7 +5,10 @@ using Plots
 include("Modules.jl")
 using .Modules
 
-export plot_patient_routes
+include("utils/NurseReader.jl")
+using .NurseReader
+
+export plot_patient_routes, graph_solution
 
 function plot_patient_routes(id_routes, patients, depot_coords::Tuple{Int,Int}=(0,0), filename::String="patient_routes.png")
     """
@@ -69,6 +72,39 @@ function plot_patient_routes(id_routes, patients, depot_coords::Tuple{Int,Int}=(
     println("Plot saved as $(filename)")
     
     return p
+end
+
+function load_routes_array_from_file(filename::String)::Vector{Vector{Int}}
+    # Initialize routes container
+    routes = Vector{Vector{Int}}()
+    
+    # Open and read the entire file content
+    content = open(filename, "r") do file
+        read(file, String)
+    end
+    
+    # Remove whitespace and parse the content as a Julia expression
+    # This handles the format [[1,2,3], [4,5]]
+    try
+        parsed_array = eval(Meta.parse(content))
+        
+        # Verify it's a Vector of Vectors
+        if parsed_array isa Vector && all(route -> route isa Vector, parsed_array)
+            routes = parsed_array
+        else
+            error("File does not contain a properly formatted 2D array")
+        end
+    catch e
+        println("Error parsing file: $e")
+    end
+    
+    return routes
+end
+
+function graph_solution(solution_filename::String, json_file="./data/bin/serialized_train_9.bin")
+    depot, patients, tt_tuple, n_col = load_data(json_file)
+    routes = load_routes_array_from_file(solution_filename)
+    plot_patient_routes(routes, patients, (depot.x_coord, depot.y_coord))
 end
 
 end

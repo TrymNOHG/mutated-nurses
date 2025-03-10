@@ -20,7 +20,7 @@ using CSV
 
 extract_nurse_data("./data/train/train_9.json", "./data/bin/serialized_train_9.bin")
 depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_train_9.bin")
-println(depot)
+
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
 @inline function time_matrix(i::Int, j::Int)
@@ -40,8 +40,6 @@ function run()
 
     # Init pop
     init_pop = @time init_populations(patients, num_patients, depot.num_nurses, pop_size, growth_size, time_matrix, depot.nurse_cap, depot.return_time)
-
-    # throw("Error")
 
     populations = []
     for (i, pop) in enumerate(init_pop)
@@ -126,7 +124,6 @@ function run()
                 end
             end
 
-            # TODO: implement mutation
             for individual in pop.genes
                 EE_M!(individual,  patients, time_matrix)
                 LNS!(10, individual.gene_r, patients, time_matrix, depot) # Need to recalculate the fitness score then.
@@ -198,7 +195,6 @@ function run()
 end
 
 run()
-# println(solomon_seq_heur(size(patients, 1), depot.num_nurses, time_matrix, patients, depot.nurse_cap, depot.return_time))
 
 
 end
