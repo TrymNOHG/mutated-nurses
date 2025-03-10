@@ -15,16 +15,20 @@ using .LocalSearch
 using DataFrames, BenchmarkTools, Statistics, Serialization
 init_mu = 25
 init_lambda = 40
-max_iter = 20
+max_iter = 5
 
 
 # Code to cache training files  
-# filepath = "train/train_9.json"
-# save_path = "ser_train/serialized_data_train_9.bin"
-# @time extract_nurse_data(filepath, save_path)
+filepath = "train/train_9.json"
+save_path = "ser_train/serialized_data_train_9.bin"
+@time extract_nurse_data(filepath, save_path)
 
+# if length(ARGS) < 1
+#     error("Please provide the path to the serialized data file as an argument.")
+# end
 
-load_path = "ser_train/serialized_data_train_9.bin"
+# file_name = ARGS[1]
+load_path = "ser_train/serialized_data_train_9.bin" 
 depot, patients, tt_tuple, n_col = load_data(load_path)
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
@@ -32,6 +36,8 @@ const N_COL = n_col        # for type stability
     @inbounds TT_TUPLE[(i-1)*N_COL + j]
     TT_TUPLE[(i-1)*N_COL + j]
 end
+
+println("Running HGDAC with Time Wrapping and Modified SPLIT")
 
 function delete_at_indices!(arr::AbstractVector, indices_to_delete::AbstractVector{Int})
     # Sort the indices in reverse order to avoid index shifting issues
@@ -196,3 +202,26 @@ for (idx,curr_gene) in enumerate(genetic_pool.genes)
     println(curr_gene.gene_r)
     println("---------")
 end
+
+# # Sort genes by biased fitness and get the top 5 with lowest values
+# println("\nTop 5 Genes with Lowest Biased Fitness:")
+# println("========================================")
+
+# top_indices = partialsortperm(genetic_pool.biased_fitness_array, 1:min(5, length(genetic_pool.biased_fitness_array)))
+
+# # Create/open file for writing
+# open("../modified_hgdac_kool/input_4_hgdacKool.txt", "a") do file
+#     for (rank, idx) in enumerate(top_indices)
+#         # Print to console
+#         println("Rank #$rank (Gene Index: $idx)")
+#         println("Biased Fitness: $(genetic_pool.biased_fitness_array[idx])")
+#         println("Actual Fitness: $(genetic_pool.fitness_array[idx])")
+#         println("Routes:")
+#         println(genetic_pool.genes[idx].gene_r)
+#         println("--------------------------")
+        
+#         # Write to file using println
+#         println(file, genetic_pool.genes[idx].gene_r)
+
+#     end
+# end
