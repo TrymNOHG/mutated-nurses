@@ -252,7 +252,6 @@ function calculate_cost(route, patients, travel_time_table)
     if size(route, 1) == 0
         return 0, false, false, false
     end
-
     from = 1
     time = 0
     demand = 0
@@ -296,8 +295,11 @@ function regret_cost(patient_id, neighbors, routes, travel_time_table, patients)
             insert!(neighbor_route, i, patient_id)
             cost, time_violation, _, _ = calculate_cost(neighbor_route, patients, travel_time_table)
             insert_cost = cost - current_route_cost
-            if !time_violation && insert_cost < min_insert_cost[1]
-                min_insert_cost = (insert_cost, i)
+            # if !time_violation && insert_cost < min_insert_cost[1]
+            #     min_insert_cost = (insert_cost, i)
+            # end
+            if insert_cost < min_insert_cost[1]
+                min_insert_cost = (insert_cost + 10000 * time_violation, i)
             end
             deleteat!(neighbor_route, i)
         end

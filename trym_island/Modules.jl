@@ -7,11 +7,13 @@ using .Models, .Operations
 
 
 export Models, Operations
-export Gene, ModelPop
+export Gene, ModelPop, Patient
 export init_populations, calculate_cost, select_parents
 export perform_crossover!
 export EE_M!
+export LNS!
 export fitness
+export re_init2
 
 
 end

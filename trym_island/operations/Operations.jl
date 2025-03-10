@@ -8,8 +8,9 @@ module Operations
     include("Population.jl")
     include("Recombination.jl")
     include("Fitness.jl")
+    include("LocalSearch.jl")
 
-    using .ParentSelection, .Population, .PermutationMutation, .Neighborhood, .Fitness, .Recombination
+    using .ParentSelection, .Population, .PermutationMutation, .Neighborhood, .Fitness, .Recombination, .LocalSearch
 
     # export Neighborhood, ParentSelection, PermutationMutation, Population, Recombination, re_init, init_populations
     const OpPop = Operations.Population
@@ -20,5 +21,8 @@ module Operations
     export get_centroid, get_all_centroids, get_route_neighborhood, first_apply_neighbor_insert!, best_apply_neighbor_insert!
     export fitness, evaluate, route_distance, distance
     export IB_X, perform_crossover!
+    export LNS!
+    export regret_cost
+    export re_init2
 
 end
