@@ -15,16 +15,16 @@ using .LocalSearch
 using DataFrames, BenchmarkTools, Statistics, Serialization
 init_mu = 25
 init_lambda = 40
-max_iter = 20
+max_iter = 5
 
 
 # Code to cache training files  
-# filepath = "train/train_9.json"
-# save_path = "ser_train/serialized_data_train_9.bin"
-# @time extract_nurse_data(filepath, save_path)
+filepath = "train/train_6.json"
+save_path = "ser_train/serialized_data_train_6.bin"
+@time extract_nurse_data(filepath, save_path)
 
 
-load_path = "ser_train/serialized_data_train_9.bin"
+load_path = "ser_train/serialized_data_train_6.bin"
 depot, patients, tt_tuple, n_col = load_data(load_path)
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
@@ -190,9 +190,9 @@ end
 # println(fitness_gen)
 
 
-for (idx,curr_gene) in enumerate(genetic_pool.genes)
+for (idx) in (genetic_pool.feas_genes)
     println("Gene: ",idx)
-    println(curr_gene.fitness)
-    println(curr_gene.gene_r)
+    println(genetic_pool.genes[idx].gene_r)
+    println(genetic_pool.fitness_array[idx])
     println("---------")
 end
