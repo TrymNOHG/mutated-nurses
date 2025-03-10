@@ -18,7 +18,7 @@ function compute_true_duration(route_segment::Vector{Int}, depot::Depot, patient
 
         # Customer time window constraints
         start_time = patients[customer].start_time
-        end_time = patients[customer].end_time
+        end_time = patients[customer].end_time - patients[customer].care_time
 
         # Time warp (late arrival)
         if arrival_time > end_time
