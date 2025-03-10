@@ -10,7 +10,7 @@ using CSV
 
 
 # extract_nurse_data("./data/train/train_9.json", "./data/bin/serialized_train_9.bin")
-depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_test_1.bin")
+depot, patients, tt_tuple, n_col= load_data("./data/bin/serialized_test_0.bin")
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
 @inline function time_matrix(i::Int, j::Int)
@@ -40,7 +40,7 @@ function run()
     while current_gen < NUM_GEN
         # Parent Selection:
         # parent_ids = select_parents(population) # Try first with roulette and then stochastic universal sampling
-        parent_ids = tournament_select(population, time_matrix, patients, depot, 2) # Try first with roulette and then stochastic universal sampling
+        parent_ids = tournament_select(population, time_matrix, patients, depot, 4) # Try first with roulette and then stochastic universal sampling
             
         println("Before crossover:")
         for individual in population.genes
@@ -112,7 +112,7 @@ function run()
 
         if minimum(population.fitness_array) == best_fitness
             lack_of_change += 1
-            if lack_of_change == 15
+            if lack_of_change == 50
                 best_individual_id = argmin(population.fitness_array)
                 population.genes[1] = population.genes[best_individual_id]
                 population.fitness_array[1] = population.fitness_array[best_individual_id]

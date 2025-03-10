@@ -25,7 +25,7 @@ module NurseReader
             patients[i] = Patient(i, patient_info.x_coord, patient_info.y_coord, patient_info.demand, patient_info.start_time, patient_info.end_time, patient_info.care_time)
         end
 
-        depot = Depot(json_obj.nbr_nurses, json_obj.capacity_nurse, json_obj.benchmark, json_obj.depot.return_time)
+        depot = Depot(json_obj.nbr_nurses, json_obj.capacity_nurse, json_obj.benchmark, json_obj.depot.return_time, json_obj.depot.x_coord, json_obj.depot.y_coord)
         travel_time_table = json_obj.travel_times
         n = length(travel_time_table)
         m = length(travel_time_table[1])

@@ -196,8 +196,13 @@ function init_populations(patients, num_patients, num_nurses, mu, n_p, travel_ti
     best_individual, r_min_1 = r_min(populations[1], patients, travel_time_table)
     best_individual_2, r_min_2 = r_min(populations[2], patients, travel_time_table)
 
-    populations[1][1] = r_min_2 < r_min_1 ? best_individual_2 : best_individual
-    r_min_1 = min(r_min_1, r_min_2)
+    if r_min_1 != -1 && r_min_2 != -1
+        populations[1][1] = r_min_2 < r_min_1 ? best_individual_2 : best_individual
+        r_min_1 = min(r_min_1, r_min_2)
+    else
+        r_min_1 = num_nurses
+    end
+
 
     # Here, I re-initialize the pop_1 with r_min nurses in an effort to construct fewer routes (generally more optimal). All but the best solution is re-initialized.
     for i in 2:size(populations[1], 1)-1
@@ -498,6 +503,9 @@ function r_min(pop, patients, travel_time_table)
         # Check its number of routes (making sure to not include empty routes in the number)
     end
 
+    if size(feasible_individuals, 1) == 0
+        return false, -1
+    end
     # Sort all individuals by their number of routes, then perform a second ordering based on their fitness. Choose the individual with the smallest r_min but best fitness (lowest time).
     sort!(feasible_individuals, by=x->(x[1], x[2]))
     # println(feasible_individuals)
