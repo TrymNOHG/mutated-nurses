@@ -59,18 +59,70 @@ end
     @test actual_fitness == expected_fitness
 end
 
-# @testset "RepairRoute" begin
-#     route = Vector{Int}([1])  # Depot to Patient 1 to Depot
-#     individual = Vector{Vector{Int}}([route])
-#     depot, patients, travel_time_table = extract_nurse_data("./train/train_0.json")
-#     repair!(individual, patients, travel_time_table)
-# end
+@testset "RepairRoute" begin
+    # route = Vector{Int}([1])  # Depot to Patient 1 to Depot
+    # individual = Vector{Vector{Int}}([route])
+    depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
+    # repair!(individual, patients, travel_time_table)
+end
 
 @testset "OneOrderCrossover" begin
-    individual_1 = Solution([1,2,3,4,5,6,7,8,9], [5])
-    individual_2 = Solution([9,3,7,8,2,6,5,1,4], [3])
+    # individual_1 = Solution([1,2,3,4,5,6,7,8,9], [5])
+    # individual_2 = Solution([9,3,7,8,2,6,5,1,4], [3])
+    # survivors = []
+    # order_1_crossover!(individual_1, individual_2, survivors, 9)
+    # print(survivors)
+    # @test survivors[1].values == [3,8,2,4,5,6,7,1,9]
+    # @test survivors[1].indices == [5]
+end
+
+@testset "t" begin
+    # route = Vector{Int}([1])  # Depot to Patient 1 to Depot
+    # individual = Vector{Vector{Int}}([route])
+    depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
+    expected_fitness = travel_time_table[1][9] + travel_time_table[9][95] + patients[9].care_time
+    # println(patients)
+    println(expected_fitness)
+end
+
+@testset "Feasibility test" begin
+    individual_1 = Solution([8, 95], [1])
+    depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
+    # @test is_feasible(individual_1, patients, depot, travel_time_table) == true
+end
+
+@testset "PMX Test" begin
+    individual_1 = Solution([1,2,3,4,5,6,7,8,9], [1])
+    individual_2 = Solution([9,3,7,8,2,6,5,1,4], [2])
     survivors = []
-    order_1_crossover!(individual_1, individual_2, survivors, 9)
-    @test survivors[1].values == [3,8,2,4,5,6,7,1,9]
-    @test survivors[1].indices == [5]
+    PMX!(individual_1, individual_2, survivors, 9)
+    print(survivors)
+    # @test survivors[1].values == [9,3,2,4,5,6,7,1,8]
+    # @test survivors[1].indices == [1]
+end
+
+@testset "Edge Table Test" begin
+    individual_1 = Solution([1,2,3,4,5,6,7,8,9], [1])
+    individual_2 = Solution([9,3,7,8,2,6,5,1,4], [2])
+    gen_edge_table(individual_1.values, individual_2.values)
+end
+
+
+@testset "TBX Test" begin
+    individual_1 = Solution([5, 1, 3, 2, 6, 4], [1])
+    individual_2 = Solution([2, 4, 1, 6, 3, 5], [2])
+    survivors = []
+    TBX!(individual_1, individual_2, survivors, 6)
+end
+
+@testset "edge_3_crossover Test" begin
+    individual_1 = Solution([1,2,3,4,5,6,7,8,9], [1])
+    individual_2 = Solution([9,3,7,8,2,6,5,1,4], [2])
+    survivors = []
+    edge_3_crossover!(individual_1, individual_2, survivors, 9)
+end
+
+@testset "Heuristic Pop Test" begin
+    depot, patients, travel_time_table = extract_nurse_data("./train/train_9.json")
+    gen_heuristic_perm_individual(depot.num_nurses, size(patients, 1), travel_time_table)
 end

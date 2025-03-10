@@ -6,6 +6,9 @@ using DataStructures
 
 export tournament_select, nurse_fitness, simple_nurse_fitness
 
+include("./Population.jl")
+using .Population
+
 function select_parents!(population, num_parents, output_file, best_individual)
     fitness_scores, best_of_pop = sigma_select(population, output_file, 2)
     if best_of_pop[1] > best_individual.fitness
@@ -16,19 +19,38 @@ function select_parents!(population, num_parents, output_file, best_individual)
 end
 
 
-function pop_fitness(population::Vector{T}, travel_time_table, patients, return_time, capacity, fitness_func::Function) where {T}
+function pop_fitness(population::Vector{T}, travel_time_table, patients, depot, fitness_func::Function) where {T}
     """
     This method takes a naive approach to parent selection by solely using the probability distribution given the fitness scores.
     """
     fitness_scores = Vector{Float32}() 
     total_fitness = 0
     for (i, individual) in enumerate(population)
-        individ_fitness, objective_value = fitness_func(individual, travel_time_table, patients, return_time, capacity)
+        individ_fitness, objective_value = fitness_func(individual, travel_time_table, patients, depot)
+        if objective_value < 4000
+            println(individ_fitness)
+        end
         if objective_value < 2000
-            println(objective_value)
-        elseif objective_value < 1400
-            println("Objective value fell under 1000 for:")
-            println(individual)
+            feasible, _, _ = is_feasible(individual, patients, depot, travel_time_table)
+            # print(individual)
+            # throw(Error(""))
+            if feasible
+                println("Objective value fell under 1000 for:")
+                println()
+                println(individual)
+                actual_solution = []
+                for i in 0:size(individual.indices, 1)
+                    if i == 0
+                        route = individual.values[1:individual.indices[1] - 1]
+                    elseif i == size(individual.indices, 1)
+                        route = individual.values[individual.indices[i]:end]
+                    else
+                        route = individual.values[individual.indices[i]:individual.indices[i+1] - 1]
+                    end
+                    push!(actual_solution, route)
+                end
+                println(actual_solution)
+            end
         end
         push!(fitness_scores, individ_fitness)
         total_fitness += individ_fitness
@@ -108,9 +130,9 @@ function stochastic_universal_sampling(population, fitness_scores, num_parents)
     return parents
 end
 
-function tournament_select(population, num_parents::Integer, k::Integer, travel_time_table, patients, return_time, capacity)
+function tournament_select(population, num_parents::Integer, k::Integer, travel_time_table, patients, depot)
     chosen_parents = []
-    fitness_scores, total_fitness = pop_fitness(population, travel_time_table, patients, return_time, capacity, nurse_fitness) # (id_of_individual, fitness_score)
+    fitness_scores, total_fitness = pop_fitness(population, travel_time_table, patients, depot, nurse_fitness) # (id_of_individual, fitness_score)
     num_parents_chosen = 0
     while num_parents_chosen < num_parents
         # Perform sampling and comparison
@@ -131,7 +153,7 @@ function tournament_select(population, num_parents::Integer, k::Integer, travel_
     return chosen_parents
 end
 
-function nurse_fitness(individual, travel_time_table, patients, return_time, capacity)
+function nurse_fitness(individual, travel_time_table, patients, depot)
     # Constraints:
     #   Soft:
     #       - Late return       (Added as a penalty)
@@ -169,16 +191,19 @@ function nurse_fitness(individual, travel_time_table, patients, return_time, cap
         nurse_time += travel_time_table[from][to]
         objective_value += travel_time_table[from][to]
 
-        if nurse_time > return_time
-            nurse_time *= 5            # Penalty for late return
+        if nurse_time > depot.return_time
+            nurse_time *= 10            # Penalty for late return
         end
 
-        if nurse_demand > capacity      # Penalty for exceeding nurse capacity
-            nurse_time *= 5
+        if nurse_demand > depot.nurse_cap      # Penalty for exceeding nurse capacity
+            nurse_time *= 10
         end
 
         total_time += nurse_time
     end
+
+    feasible, multiplier, total_time = is_feasible(individual, patients, depot, travel_time_table)
+    total_time *= multiplier
 
     # If we use the total_time, then this is a minimization optimization problem. Keep this in mind.
     return total_time, objective_value
