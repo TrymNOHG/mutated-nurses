@@ -15,16 +15,16 @@ using .LocalSearch
 using DataFrames, BenchmarkTools, Statistics, Serialization
 init_mu = 25
 init_lambda = 40
-max_iter = 100
+max_iter = 20
 
 
 # Code to cache training files  
-filepath = "train/train_1.json"
-save_path = "ser_train/serialized_data_test_1.bin"
-@time extract_nurse_data(filepath, save_path)
+# filepath = "train/train_9.json"
+# save_path = "ser_train/serialized_data_train_9.bin"
+# @time extract_nurse_data(filepath, save_path)
 
 
-load_path = "ser_train/serialized_data_test_1.bin"
+load_path = "ser_train/serialized_data_train_9.bin"
 depot, patients, tt_tuple, n_col = load_data(load_path)
 const TT_TUPLE = tt_tuple  # Make global constant
 const N_COL = n_col        # for type stability
@@ -154,7 +154,8 @@ for gen_iter in 1:max_iter
     calc_biased_fitness(genetic_pool, genetic_pool.infeas_genes, nbClose,nbElite)
     calc_biased_fitness(genetic_pool, genetic_pool.feas_genes, nbClose,nbElite)
         
-    min_indicies = partialsortperm(genetic_pool.biased_fitness_array, 1:genetic_pool.lambda)
+    # min_indicies = partialsortperm(genetic_pool.biased_fitness_array, 1:genetic_pool.lambda)
+    min_indicies = partialsortperm(genetic_pool.fitness_array, 1:genetic_pool.lambda)
     delete_at_indices!(genetic_pool.genes, min_indicies)
     delete_at_indices!(genetic_pool.fitness_array, min_indicies)
 

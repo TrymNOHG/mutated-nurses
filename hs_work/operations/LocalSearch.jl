@@ -2,7 +2,7 @@ module LocalSearch
 using ..Models, ..Split
 using Random
 
-export local_search!
+export local_search!, route_cost
 
 
 function compute_true_duration(route_segment::Vector{Int}, depot::Depot, patients::Vector{Patient}, time_matrix)
